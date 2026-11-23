@@ -15,6 +15,7 @@ FILL = ExerciseDraft(
     prompt="She ___ in a bank.",
     options=[],
     answers=["works"],
+    correction="",
     rule_section="regola",
     explanation="Alla terza persona singolare si aggiunge -s.",
 )
@@ -25,6 +26,7 @@ CHOICE = ExerciseDraft(
     prompt="___ she work on Sundays?",
     options=["Do", "Does", "Is"],
     answers=["Does"],
+    correction="",
     rule_section="attenzione",
     explanation="Con he/she/it la domanda usa does.",
 )

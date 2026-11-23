@@ -12,10 +12,10 @@ from datapizza.core.models import PipelineComponent
 from datapizza.pipeline import DagPipeline
 from pydantic import BaseModel
 
+from enita.agent.formats import completed_sentence, format_issues, normalize, prepare
 from enita.agent.prompts import VERIFIER_TASK, WRITER_FEEDBACK, WRITER_TASK
 from enita.guardrails.checks import output_issues
-from enita.models import BLANK, MAX_ANSWER_LENGTH, ExerciseDraft, ExerciseType, Verification
-from enita.practice.checker import normalize
+from enita.models import MAX_ANSWER_LENGTH, ExerciseDraft, ExerciseType, Verification
 
 
 class AgentLike(Protocol):
@@ -55,7 +55,7 @@ class WriterNode(PipelineComponent):
     ) -> ExerciseDraft:
         task = WRITER_TASK.format(topic_id=topic_id, exercise_type=exercise_type, feedback=feedback)
         step = await self.agent.a_run(task, tool_choice="required_first")
-        return _structured(step, ExerciseDraft)
+        return prepare(_structured(step, ExerciseDraft))
 
 
 def rule_issues(draft: ExerciseDraft, expected_type: ExerciseType | None = None) -> list[str]:
@@ -63,44 +63,21 @@ def rule_issues(draft: ExerciseDraft, expected_type: ExerciseType | None = None)
     issues: list[str] = []
     if expected_type and draft.type != expected_type:
         issues.append(f"The exercise type must be {expected_type}.")
-    if draft.prompt.count(BLANK) != 1:
-        issues.append(f"The prompt must contain '{BLANK}' exactly one time.")
     if len(draft.prompt) > MAX_ANSWER_LENGTH:
         issues.append("The prompt is too long.")
     if not draft.answers or any(not a.strip() for a in draft.answers):
         issues.append("There must be at least one non-empty answer.")
-    if draft.type == "fill_blank" and draft.options:
-        issues.append("A fill_blank exercise must have no options.")
-    if draft.type == "multiple_choice":
-        options = [normalize(o) for o in draft.options]
-        if not 3 <= len(options) <= 4 or len(set(options)) != len(options):
-            issues.append("A multiple_choice exercise must have 3 or 4 different options.")
-        if len(draft.answers) != 1 or normalize(draft.answers[0]) not in options:
-            issues.append("A multiple_choice exercise must have one answer equal to an option.")
-    issues += output_issues(draft.instruction, draft.prompt, draft.explanation, draft.answers)
-    if draft.prompt.count(BLANK) == 1 and any(
-        _repeats_context(draft.prompt, a) for a in draft.answers
-    ):
-        issues.append(
-            f"The answer repeats a word of the prompt. The completed sentence is: {fill_blank(draft)}"
-        )
+        return issues
+    issues += format_issues(draft)
+    # In find_error the wrong word is in the prompt by design: check only the instruction.
+    visible_prompt = "" if draft.type == "find_error" else draft.prompt
+    issues += output_issues(draft.instruction, visible_prompt, draft.explanation, draft.answers)
     return issues
 
 
 def fill_blank(draft: ExerciseDraft) -> str:
-    """The prompt with the first answer in the blank."""
-    return draft.prompt.replace(BLANK, draft.answers[0] if draft.answers else BLANK, 1)
-
-
-def _repeats_context(prompt: str, answer: str) -> bool:
-    """True if the answer repeats words just before or just after the blank."""
-    before, _, after = prompt.partition(BLANK)
-    words = normalize(answer).split()
-    prev, nxt = normalize(before).split(), normalize(after).split()
-    for k in range(1, len(words) + 1):
-        if words[-k:] == nxt[:k] or words[:k] == prev[-k:]:
-            return True
-    return False
+    """Kept for the evals and tests: the solved sentence of any exercise type."""
+    return completed_sentence(draft)
 
 
 class RulesNode(PipelineComponent):
@@ -120,7 +97,7 @@ class VerifierNode(PipelineComponent):
 
     async def _a_run(self, draft: ExerciseDraft, card: str) -> Verification:
         task = VERIFIER_TASK.format(
-            card=card, draft=draft.model_dump_json(indent=2), completed=fill_blank(draft)
+            card=card, draft=draft.model_dump_json(indent=2), completed=completed_sentence(draft)
         )
         return _structured(await self.agent.a_run(task), Verification)
 

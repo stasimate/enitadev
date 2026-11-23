@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field
 
 Level = Literal["A1", "A2", "B1"]
 SectionSlug = Literal["regola", "esempi", "attenzione", "riepilogo"]
-ExerciseType = Literal["fill_blank", "multiple_choice"]
+ExerciseType = Literal["fill_blank", "multiple_choice", "reorder", "transform", "find_error"]
 Verdict = Literal["correct", "partial", "wrong"]
 
 SECTION_SLUGS: tuple[str, ...] = ("regola", "esempi", "attenzione", "riepilogo")
@@ -48,13 +48,28 @@ class ExerciseDraft(BaseModel):
     type: ExerciseType
     instruction: str = Field(description="Short instruction for the student, in Italian.")
     prompt: str = Field(
-        description=f"One English sentence. For fill_blank it contains '{BLANK}' one time."
+        description=(
+            f"fill_blank / multiple_choice: one English sentence with '{BLANK}' one time. "
+            "reorder: the Italian translation of the target sentence. "
+            "transform: the English source sentence. "
+            "find_error: one English sentence with exactly one wrong word."
+        )
     )
     options: list[str] = Field(
-        description="multiple_choice: 3 or 4 choices. fill_blank: empty list."
+        description="multiple_choice: 3 or 4 choices. All other types: empty list."
     )
     answers: list[str] = Field(
-        description="All the accepted answers. multiple_choice: exactly one, equal to an option."
+        description=(
+            "All the accepted answers. multiple_choice: exactly one, equal to an option. "
+            "reorder: the target sentence(s). transform: the transformed sentence(s). "
+            "find_error: exactly one item, the wrong word as it is in the prompt."
+        )
+    )
+    correction: str = Field(
+        description=(
+            "find_error: the correct form of the wrong word, or an empty string if the word "
+            "must be removed. Other types: empty string."
+        )
     )
     rule_section: SectionSlug = Field(
         description="The section of the theory card that the exercise practises."
