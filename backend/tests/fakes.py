@@ -49,8 +49,8 @@ class FakeAgent:
         return Step(structured_data=[out])
 
 
-APPROVE = Verification(approved=True, issues=[])
-REJECT = Verification(approved=False, issues=["Two answers are correct."])
+APPROVE = Verification(correct_options=["Does"], approved=True, issues=[])
+REJECT = Verification(correct_options=[], approved=False, issues=["Two answers are correct."])
 
 
 @asynccontextmanager

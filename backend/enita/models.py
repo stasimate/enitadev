@@ -67,6 +67,12 @@ class ExerciseDraft(BaseModel):
 class Verification(BaseModel):
     """The decision of the verifier agent about one draft."""
 
+    correct_options: list[str] = Field(
+        description=(
+            "multiple_choice: copy EVERY option that gives a grammatically correct English "
+            "sentence when you put it in the blank, in any context. fill_blank: empty list."
+        )
+    )
     approved: bool
     issues: list[str] = Field(description="The problems found. Empty when approved.")
 

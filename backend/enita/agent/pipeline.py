@@ -76,7 +76,29 @@ def rule_issues(draft: ExerciseDraft, expected_type: ExerciseType | None = None)
             issues.append("A multiple_choice exercise must have 3 or 4 different options.")
         if len(draft.answers) != 1 or normalize(draft.answers[0]) not in options:
             issues.append("A multiple_choice exercise must have one answer equal to an option.")
+    if draft.prompt.count(BLANK) == 1 and any(
+        _repeats_context(draft.prompt, a) for a in draft.answers
+    ):
+        issues.append(
+            f"The answer repeats a word of the prompt. The completed sentence is: {fill_blank(draft)}"
+        )
     return issues
+
+
+def fill_blank(draft: ExerciseDraft) -> str:
+    """The prompt with the first answer in the blank."""
+    return draft.prompt.replace(BLANK, draft.answers[0] if draft.answers else BLANK, 1)
+
+
+def _repeats_context(prompt: str, answer: str) -> bool:
+    """True if the answer repeats words just before or just after the blank."""
+    before, _, after = prompt.partition(BLANK)
+    words = normalize(answer).split()
+    prev, nxt = normalize(before).split(), normalize(after).split()
+    for k in range(1, len(words) + 1):
+        if words[-k:] == nxt[:k] or words[:k] == prev[-k:]:
+            return True
+    return False
 
 
 class RulesNode(PipelineComponent):
@@ -95,7 +117,9 @@ class VerifierNode(PipelineComponent):
         raise NotImplementedError("Use a_run")
 
     async def _a_run(self, draft: ExerciseDraft, card: str) -> Verification:
-        task = VERIFIER_TASK.format(card=card, draft=draft.model_dump_json(indent=2))
+        task = VERIFIER_TASK.format(
+            card=card, draft=draft.model_dump_json(indent=2), completed=fill_blank(draft)
+        )
         return _structured(await self.agent.a_run(task), Verification)
 
 
@@ -105,16 +129,34 @@ class Decision:
     issues: list[str] = field(default_factory=list)
 
 
+def option_issues(draft: ExerciseDraft, verification: Verification) -> list[str]:
+    """multiple_choice: the code, not the LLM, decides if the solution is unique."""
+    if draft.type != "multiple_choice":
+        return []
+    correct = {normalize(o) for o in verification.correct_options}
+    extra = correct - {normalize(a) for a in draft.answers}
+    if extra:
+        return [f"These options also give a correct sentence: {sorted(extra)}. Change them."]
+    return []
+
+
 class DecisionNode(PipelineComponent):
-    def _decide(self, rule_issues: list[str], verification: Verification) -> Decision:
-        issues = [*rule_issues, *verification.issues]
-        return Decision(approved=verification.approved and not rule_issues, issues=issues)
+    def _decide(
+        self, draft: ExerciseDraft, rule_issues: list[str], verification: Verification
+    ) -> Decision:
+        own = [*rule_issues, *option_issues(draft, verification)]
+        issues = [*own, *verification.issues]
+        return Decision(approved=verification.approved and not own, issues=issues)
 
-    def _run(self, rule_issues: list[str], verification: Verification) -> Decision:
-        return self._decide(rule_issues, verification)
+    def _run(
+        self, draft: ExerciseDraft, rule_issues: list[str], verification: Verification
+    ) -> Decision:
+        return self._decide(draft, rule_issues, verification)
 
-    async def _a_run(self, rule_issues: list[str], verification: Verification) -> Decision:
-        return self._decide(rule_issues, verification)
+    async def _a_run(
+        self, draft: ExerciseDraft, rule_issues: list[str], verification: Verification
+    ) -> Decision:
+        return self._decide(draft, rule_issues, verification)
 
 
 def build_pipeline(writer: AgentLike, verifier: AgentLike) -> DagPipeline:
@@ -125,6 +167,7 @@ def build_pipeline(writer: AgentLike, verifier: AgentLike) -> DagPipeline:
     dag.add_module("decision", DecisionNode())
     dag.connect("writer", "rules", target_key="draft")
     dag.connect("writer", "verifier", target_key="draft")
+    dag.connect("writer", "decision", target_key="draft")
     dag.connect("rules", "decision", target_key="rule_issues")
     dag.connect("verifier", "decision", target_key="verification")
     return dag

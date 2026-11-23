@@ -1,7 +1,7 @@
 import pytest
 from fastapi.testclient import TestClient
 
-from enita.agent.pipeline import GenerationError, generate_exercise, rule_issues
+from enita.agent.pipeline import GenerationError, generate_exercise, option_issues, rule_issues
 from enita.api.exercises import get_practice
 from enita.api.topics import get_content
 from enita.main import app
@@ -35,6 +35,25 @@ def test_rule_issues() -> None:
     assert rule_issues(CHOICE.model_copy(update={"answers": ["Are"]}))
     assert rule_issues(CHOICE.model_copy(update={"options": ["Do", "do", "Is"]}))
     assert rule_issues(CHOICE, expected_type="fill_blank")
+    # The answer must not repeat the words around the blank.
+    assert rule_issues(
+        FILL.model_copy(update={"prompt": "He ___ finished.", "answers": ["has finished"]})
+    )
+    assert rule_issues(
+        CHOICE.model_copy(
+            update={
+                "prompt": "___ she work?",
+                "options": ["Does she", "Do", "Is"],
+                "answers": ["Does she"],
+            }
+        )
+    )
+
+
+def test_option_issues_need_one_correct_option() -> None:
+    assert option_issues(CHOICE, APPROVE) == []
+    both = APPROVE.model_copy(update={"correct_options": ["Does", "Do"]})
+    assert option_issues(CHOICE, both)
 
 
 # --- Multi-agent pipeline ---------------------------------------------------------------
