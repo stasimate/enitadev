@@ -119,10 +119,12 @@ writer ──▶ rules check (fixed rules) ──┐
 - **Writer**: a datapizza `Agent` with the MCP tool `get_theory_card` and structured output
   `ExerciseDraft`. It must call the tool first (`tool_choice="required_first"`).
 - **Rules check**: free checks of the format (one blank, 3-4 different options, the answer
-  is an option, the correct type).
+  is an option, the correct type, no repeated words around the blank).
 - **Verifier**: a datapizza `Agent` without tools and with structured output `Verification`.
-  It receives the card and the draft.
-- **Decision**: it approves only if the rules check has no issues and the verifier approves.
+  It receives the card, the draft and the completed sentence. For multiple_choice it lists
+  every option that gives a correct sentence (`correct_options`).
+- **Decision**: it approves only if the rules check has no issues, `correct_options`
+  contains only the answer, and the verifier approves.
   A DAG has no cycles. Thus, the retry loop is outside the pipeline. On a retry, the writer
   receives the issues.
 
@@ -218,7 +220,7 @@ Each milestone must end with a part that operates.
 |---|---|---|---|
 | M0 | Repository, analysis, AGENTS.md, frontend and backend scaffold | — | done |
 | M1 | Theory cards (6 topics, A1 to B1), topics API, split-screen UI with the theory, Docker image and Docker dev stack | RF-01..03 | done |
-| M2 | Writer + verifier agents (DagPipeline) for more than one provider, MCP server with `get_theory_card`, closed exercises with fixed-rule check, practice UI | RF-10..12, RF-14, RF-30, S12 | done (live LLM test pending) |
+| M2 | Writer + verifier agents (DagPipeline) for more than one provider, MCP server with `get_theory_card`, closed exercises with fixed-rule check, practice UI | RF-10..12, RF-14, RF-30, RF-31, S12 | done |
 | M3 | SQLite for attempts and profile, input and output guardrails, ContextTracing | RF-15, RF-20, S13 | 1 h |
 | M4 | Eval (8 tasks) and timeout on the AI correction | S14 | 1 h |
 | M5 | Dockerfile, compose and README | S15 | 45 min |
@@ -239,7 +241,9 @@ Each milestone must end with a part that operates.
 | Persistence | SQLite | No infrastructure. It is sufficient for one user. |
 | Frontend runtime | Angular 22.3 on Node 24 (`.nvmrc`) | Angular 22 requires Node 24.15 or later. It installs with npm 11 and no `legacy-peer-deps`. |
 | Documentation | English, ASD-STE100 | Requirement of the project owner. The chat stays in Italian. |
-| Default provider | OpenAI `gpt-4o-mini` | Decision of the project owner. The other providers stay available through `ENITA_PROVIDER`. |
+| Default provider | OpenAI `gpt-4.1-mini` | Live test: with `gpt-4o-mini` 0 of 3 exercises passed (wrong drafts and wrong reviews). With `gpt-4.1-mini` 12 of 12 passed in 4-15 s. The other providers stay available through `ENITA_PROVIDER`. |
+| Model routing (RF-31) | `ENITA_WRITER_MODEL` and `ENITA_VERIFIER_MODEL` (optional) | Each agent can use a different model. Empty: the agent uses `ENITA_MODEL`. |
+| Unique solution | The verifier lists every option that gives a correct sentence (`correct_options`). The code approves only if this list is the answer. Fixed rules also reject an answer that repeats the words around the blank. | Live test: a global question ("is there one solution?") let ambiguous and repeated-word exercises pass. |
 | Deployment | One Docker image. FastAPI serves the API and the Angular build. | One container is simpler for the demo. There is no CORS configuration in production. |
 | Development runtime | Docker (colima on the host). `compose.dev.yaml` starts the backend and the frontend with hot reload. | Decision of the project owner. The host does not need Python or Node. |
 | Frontend structure | `core/`, `features/`, `shared/`. One component has one responsibility. A feature store keeps the state. | Decision of the project owner. Small components are easy to test and to change. |
