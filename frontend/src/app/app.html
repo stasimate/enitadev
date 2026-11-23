@@ -1,6 +1,8 @@
 <div class="flex min-h-dvh flex-col">
   <header class="flex flex-wrap items-center justify-between gap-3 border-b-2 border-ink px-4 py-3">
-    <h1 class="text-xl font-bold tracking-tight">ENITA<span class="cursor-blink text-accent">_</span></h1>
+    <h1 class="text-xl font-bold tracking-tight">
+      ENITA<span class="cursor-blink text-accent">_</span>
+    </h1>
     <en-topic-select
       [groups]="theory.groups()"
       [selected]="theory.selectedId()"
@@ -9,28 +11,51 @@
   </header>
 
   <nav class="flex border-b-2 border-ink lg:hidden" aria-label="Sezioni">
-    <button type="button" class="flex-1 border-r-2 border-ink py-2 font-bold uppercase"
-      [class.bg-ink]="activePane() === 'theory'" [class.text-paper]="activePane() === 'theory'"
-      [attr.aria-pressed]="activePane() === 'theory'" (click)="activePane.set('theory')">[ Teoria ]</button>
-    <button type="button" class="flex-1 py-2 font-bold uppercase"
-      [class.bg-ink]="activePane() === 'practice'" [class.text-paper]="activePane() === 'practice'"
-      [attr.aria-pressed]="activePane() === 'practice'" (click)="activePane.set('practice')">[ Pratica ]</button>
+    <button
+      type="button"
+      class="flex-1 border-r-2 border-ink py-2 font-bold uppercase"
+      [class.bg-ink]="activePane() === 'theory'"
+      [class.text-paper]="activePane() === 'theory'"
+      [attr.aria-pressed]="activePane() === 'theory'"
+      (click)="activePane.set('theory')"
+    >
+      [ Teoria ]
+    </button>
+    <button
+      type="button"
+      class="flex-1 py-2 font-bold uppercase"
+      [class.bg-ink]="activePane() === 'practice'"
+      [class.text-paper]="activePane() === 'practice'"
+      [attr.aria-pressed]="activePane() === 'practice'"
+      (click)="activePane.set('practice')"
+    >
+      [ Pratica ]
+    </button>
   </nav>
 
   <main class="grid flex-1 lg:grid-cols-2">
-    <section aria-labelledby="theory-title" class="p-6 lg:block lg:border-r-2 lg:border-ink"
-      [class.hidden]="activePane() !== 'theory'">
+    <section
+      aria-labelledby="theory-title"
+      class="p-6 lg:block lg:border-r-2 lg:border-ink"
+      [class.hidden]="activePane() !== 'theory'"
+    >
       <h2 id="theory-title" class="mb-4 text-sm font-bold uppercase">// Teoria</h2>
       @if (theory.card.hasValue()) {
         <en-theory-card [card]="theory.card.value()" [highlighted]="theory.highlighted()" />
       } @else if (theory.card.error() || theory.topics.error()) {
-        <p role="alert" class="border-2 border-err p-4 text-err">[ ERRORE ] Il backend non risponde.</p>
+        <p role="alert" class="border-2 border-err p-4 text-err">
+          [ ERRORE ] Il backend non risponde.
+        </p>
       } @else {
         <p aria-live="polite">Caricamento<span class="cursor-blink">_</span></p>
       }
     </section>
 
-    <section aria-labelledby="practice-title" class="p-6 lg:block" [class.hidden]="activePane() !== 'practice'">
+    <section
+      aria-labelledby="practice-title"
+      class="p-6 lg:block"
+      [class.hidden]="activePane() !== 'practice'"
+    >
       <h2 id="practice-title" class="mb-4 text-sm font-bold uppercase">// Pratica</h2>
       <en-practice-panel (ruleShown)="revealRule()" />
     </section>

@@ -14,7 +14,9 @@ describe('TheoryStore', () => {
   let http: HttpTestingController;
 
   beforeEach(() => {
-    TestBed.configureTestingModule({ providers: [provideHttpClient(), provideHttpClientTesting()] });
+    TestBed.configureTestingModule({
+      providers: [provideHttpClient(), provideHttpClientTesting()],
+    });
     store = TestBed.inject(TheoryStore);
     http = TestBed.inject(HttpTestingController);
   });
@@ -31,7 +33,9 @@ describe('TheoryStore', () => {
     expect(store.selectedId()).toBe('b');
 
     TestBed.tick();
-    http.expectOne('/api/topics/b').flush({ id: 'b', title: 'B', level: 'A2', tags: [], sections: [] });
+    http
+      .expectOne('/api/topics/b')
+      .flush({ id: 'b', title: 'B', level: 'A2', tags: [], sections: [] });
     await settle();
     expect(store.card.value()?.title).toBe('B');
   });

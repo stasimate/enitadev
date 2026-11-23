@@ -32,7 +32,9 @@ describe('PracticeStore', () => {
   let http: HttpTestingController;
 
   beforeEach(() => {
-    TestBed.configureTestingModule({ providers: [provideHttpClient(), provideHttpClientTesting()] });
+    TestBed.configureTestingModule({
+      providers: [provideHttpClient(), provideHttpClientTesting()],
+    });
     http = TestBed.inject(HttpTestingController);
     theory = TestBed.inject(TheoryStore);
     store = TestBed.inject(PracticeStore);
@@ -98,6 +100,15 @@ describe('PracticeStore', () => {
     store.newExercise('past-simple');
     http.expectOne('/api/exercises').error(new ProgressEvent('error'));
     expect(store.error()).toBe('Il backend non risponde.');
+  });
+
+  it('prefetches the exercises when the topic changes', async () => {
+    theory.select('other');
+    await settle();
+    const prefetch = http.expectOne('/api/topics/other/prefetch');
+    expect(prefetch.request.method).toBe('POST');
+    prefetch.flush(null, { status: 202, statusText: 'Accepted' });
+    http.match(() => true);
   });
 
   it('resets when the theory topic changes', async () => {
