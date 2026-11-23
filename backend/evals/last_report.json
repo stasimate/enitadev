@@ -1,5 +1,5 @@
 {
-  "created_at": "2026-11-23T11:29:55+00:00",
+  "created_at": "2026-11-23T13:27:20+00:00",
   "provider": "openai",
   "model": "gpt-4.1-mini",
   "writer_model": "gpt-4.1-mini",
@@ -8,8 +8,8 @@
   "evals": [
     {
       "name": "review",
-      "score": "7/8",
-      "gate": ">= 7/8",
+      "score": "11/11",
+      "gate": ">= 10/11",
       "passed": true,
       "cases": [
         {
@@ -44,10 +44,11 @@
           "passed": true,
           "defect": "the expected answer is wrong English (readed)",
           "issues": [
-            "The answer 'readed' is incorrect; the past participle of 'read' is 'read' (pronounced like 'red').",
-            "The explanation incorrectly states that 'read' forms the participle with '-ed', which is wrong.",
-            "The completed sentence 'I have readed that book twice.' is grammatically incorrect.",
-            "The exercise answers do not contain the correct past participle form needed for the present perfect."
+            "The completed sentence is incorrect: 'readed' is not the correct past participle of 'read'.",
+            "The only answer provided 'readed' is wrong; the correct past participle is 'read'.",
+            "The explanation is incorrect; 'read' is an irregular verb and does not form its participle with -ed.",
+            "The exercise contradicts the theory card regarding irregular verb participles.",
+            "The instruction is clear but the answer and explanation do not match the theory card or standard English grammar."
           ],
           "correct_options": []
         },
@@ -60,9 +61,10 @@
           "defect": "'walks' is also correct",
           "issues": [
             "These options also give a correct sentence: ['walks']. Change them.",
-            "More than one correct option fits grammatically and naturally in the blank, so the exercise is ambiguous.",
-            "The 'answers' list contains only 'goes', but 'walks' is also a correct form in context.",
-            "Instruction is too generic and doesn't guide about subject-verb agreement explicitly."
+            "The sentence 'She walks to school every day.' is also grammatically correct and natural, so there is more than one correct option.",
+            "The answers include only 'goes', but 'walks' is also correct, violating the rule of having exactly one correct solution.",
+            "The exercise is about present simple third person singular, but the options and answers do not match the requirement of having a single correct option.",
+            "The explanation does not clarify why 'go' is incorrect in the third person singular form, which might confuse learners."
           ],
           "correct_options": [
             "goes",
@@ -78,10 +80,11 @@
           "defect": "the answer repeats 'finished'",
           "issues": [
             "The answer repeats a word of the prompt. The completed sentence is: He has finished finished his homework.",
-            "The completed sentence repeats 'finished' twice, which is incorrect.",
-            "There is more than one 'finished' word, indicating a repeated word error.",
-            "The instruction is correct and the explanation correct, but the actual example is wrong because the sentence is not natural and grammatically incorrect.",
-            "Answers contain a correct form but its insertion leads to a duplicated word in the prompt, so it's incorrectly formatted."
+            "Completed sentence contains a repeated word: 'finished finished'.",
+            "The completed sentence is not grammatically correct due to word repetition.",
+            "The completed sentence is not natural because of repeated 'finished'.",
+            "The instruction is vague and does not explicitly prevent repetition errors.",
+            "No alternatives or common variations given, but repetition error makes the draft incorrect."
           ],
           "correct_options": []
         },
@@ -93,15 +96,12 @@
           "passed": true,
           "defect": "the explanation names the wrong tense",
           "issues": [
-            "The explanation is incorrect: it says 'past simple' instead of 'present continuous'.",
-            "The instruction is too general but acceptable; however, the explanation contradicts the theory card.",
-            "The exercise practises the present continuous, but the explanation misleads by mentioning past simple.",
-            "Other conditions are met, but the incorrect explanation is a critical issue."
+            "The explanation wrongly states 'past simple' instead of 'present continuous'.",
+            "The explanation does not agree with the theory card rules.",
+            "The instruction is too generic and does not specify present continuous, which is the topic.",
+            "The answers list multiple correct forms; this violates the single correct solution rule."
           ],
-          "correct_options": [
-            "is raining",
-            "'s raining"
-          ]
+          "correct_options": []
         },
         {
           "id": "leaked-solution",
@@ -121,13 +121,65 @@
           "id": "edge-article-ambiguity",
           "edge": true,
           "expected": false,
-          "approved": true,
-          "passed": false,
+          "approved": false,
+          "passed": true,
           "defect": "'the' also gives a correct sentence",
-          "issues": [],
+          "issues": [
+            "These options also give a correct sentence: ['the']. Change them.",
+            "More than one article can be correct: both 'a' and 'the' fit the sentence grammatically depending on context.",
+            "The exercise accepts only one correct answer, but others are possible.",
+            "The prompt lacks context to exclude 'the' as a valid article here."
+          ],
           "correct_options": [
-            "a"
+            "a",
+            "the"
           ]
+        },
+        {
+          "id": "good-find-error",
+          "edge": false,
+          "expected": true,
+          "approved": true,
+          "passed": true,
+          "defect": "none",
+          "issues": [],
+          "correct_options": []
+        },
+        {
+          "id": "find-error-two-errors",
+          "edge": false,
+          "expected": false,
+          "approved": false,
+          "passed": true,
+          "defect": "'buyed' is also wrong",
+          "issues": [
+            "The completed sentence contains 'buyed', which is incorrect and should be 'bought'.",
+            "There is more than one incorrect word ('goed' and 'buyed'), but only 'goed' is given as the answer, violating the condition of exactly one correct solution.",
+            "The answer list includes only 'goed', missing the error on 'buyed', so the answer is incomplete.",
+            "The exercise does not fully align with the Past Simple rules for irregular verbs, as the verb 'buy' is also irregular and incorrectly formed in the prompt.",
+            "The completed sentence is not grammatically correct due to the error 'buyed', so condition 1 is violated."
+          ],
+          "correct_options": [
+            "goed",
+            "buyed"
+          ]
+        },
+        {
+          "id": "transform-wrong-answer",
+          "edge": false,
+          "expected": false,
+          "approved": false,
+          "passed": true,
+          "defect": "the expected answer is wrong English (doesn't plays)",
+          "issues": [
+            "The completed sentence 'He doesn't plays tennis on Sundays.' is grammatically incorrect; it should be 'He doesn't play tennis on Sundays.'",
+            "The only answer given is incorrect; the verb after 'doesn't' must be in base form without 's'.",
+            "The instruction asks to transform the sentence into negative form, but the provided answer violates the rule given in the theory card.",
+            "The correction field is empty but should provide the fix to the answer sentence.",
+            "The explanation states the correct rule but this is not reflected in the provided answer.",
+            "The draft does not meet the condition of exactly one correct solution, because the only provided solution is incorrect."
+          ],
+          "correct_options": []
         }
       ]
     },
@@ -139,7 +191,7 @@
       "cases": [
         {
           "topic_id": "present-simple",
-          "type": "fill_blank",
+          "type": "find_error",
           "passed": true,
           "checks": {
             "approved": true,
@@ -152,16 +204,16 @@
             "get_learner_profile"
           ],
           "attempts": 1,
-          "seconds": 4.8,
+          "seconds": 6.2,
           "tokens": {
-            "prompt": 3676,
-            "completion": 152
+            "prompt": 5039,
+            "completion": 167
           },
           "error": null
         },
         {
           "topic_id": "past-simple",
-          "type": "multiple_choice",
+          "type": "reorder",
           "passed": true,
           "checks": {
             "approved": true,
@@ -174,16 +226,16 @@
             "get_learner_profile"
           ],
           "attempts": 1,
-          "seconds": 5.1,
+          "seconds": 6.2,
           "tokens": {
-            "prompt": 4223,
-            "completion": 175
+            "prompt": 5222,
+            "completion": 172
           },
           "error": null
         },
         {
           "topic_id": "comparatives-superlatives",
-          "type": "fill_blank",
+          "type": "transform",
           "passed": true,
           "checks": {
             "approved": true,
@@ -196,10 +248,10 @@
             "get_learner_profile"
           ],
           "attempts": 1,
-          "seconds": 5.2,
+          "seconds": 5.4,
           "tokens": {
-            "prompt": 4305,
-            "completion": 170
+            "prompt": 5618,
+            "completion": 171
           },
           "error": null
         }

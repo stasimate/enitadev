@@ -26,7 +26,12 @@ export class PracticeStore {
     // A new topic makes the old exercise useless.
     effect(() => {
       this.theory.selectedId();
-      untracked(() => this.reset());
+      const topicId = this.theory.selectedId();
+      untracked(() => {
+        this.reset();
+        // Warm up the backend. The result does not matter.
+        if (topicId) this.api.prefetch(topicId).subscribe({ error: () => undefined });
+      });
     });
   }
 
@@ -66,9 +71,9 @@ export class PracticeStore {
     if (this.retryable() && this.lastTopicId) this.newExercise(this.lastTopicId);
   }
 
-  /** Highlight the theory section of the feedback. Only for the topic on screen. */
-  showRule(): void {
-    const ref = this.feedback()?.rule_ref;
+  /** Highlight a theory section. Default: the rule of the feedback. Only for the topic on screen. */
+  showRule(ruleRef: string | undefined = this.feedback()?.rule_ref): void {
+    const ref = ruleRef;
     if (!ref) return;
     const [topicId, slug] = ref.split('#');
     if (slug && topicId === this.theory.selectedId()) this.theory.highlighted.set(slug);
@@ -97,7 +102,8 @@ export class PracticeStore {
     const status = err instanceof HttpErrorResponse ? err.status : 0;
     if (status === 502) return 'Il Tutor non è riuscito a creare un esercizio.';
     if (status === 504) return 'Il Tutor ci mette troppo tempo.';
-    if (status === 503) return 'Il provider IA ha rifiutato la richiesta. Controlla la chiave API nel file .env.';
+    if (status === 503)
+      return 'Il provider IA ha rifiutato la richiesta. Controlla la chiave API nel file .env.';
     if (status === 422) {
       const detail: unknown = (err as HttpErrorResponse).error?.detail;
       return typeof detail === 'string' && detail ? detail : 'Risposta non valida.';

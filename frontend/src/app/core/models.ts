@@ -21,16 +21,24 @@ export interface TopicCard extends TopicSummary {
   sections: Section[];
 }
 
-export type ExerciseType = 'fill_blank' | 'multiple_choice';
+export type ExerciseType =
+  'fill_blank' | 'multiple_choice' | 'reorder' | 'transform' | 'find_error';
 
 export interface Exercise {
   id: string;
   topic_id: string;
   type: ExerciseType;
   instruction: string;
-  /** English sentence. A fill_blank prompt contains `___` where the answer goes. */
+  /**
+   * Depends on the type. fill_blank: English sentence with `___` for the answer.
+   * transform: English source sentence. find_error: English sentence with one wrong word.
+   * reorder: Italian translation of the target sentence (a hint).
+   */
   prompt: string;
-  /** Three or four choices for multiple_choice. Empty for fill_blank. */
+  /**
+   * multiple_choice: the choices. reorder: shuffled English chunks.
+   * find_error: the words of the sentence in order. Empty for the other types.
+   */
   options: string[];
 }
 

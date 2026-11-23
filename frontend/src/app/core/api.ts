@@ -31,4 +31,9 @@ export class Api {
   answerExercise(id: string, answer: string): Observable<Feedback> {
     return this.http.post<Feedback>(`/api/exercises/${encodeURIComponent(id)}/answer`, { answer });
   }
+
+  /** Ask the backend to prepare exercises in advance. Fire and forget (202). */
+  prefetch(topicId: string): Observable<void> {
+    return this.http.post<void>(`/api/topics/${encodeURIComponent(topicId)}/prefetch`, null);
+  }
 }

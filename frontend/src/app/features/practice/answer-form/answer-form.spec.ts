@@ -41,7 +41,11 @@ describe('AnswerForm', () => {
   });
 
   it('emits the option text for multiple_choice', async () => {
-    const { el, answers } = await create({ ...BASE, type: 'multiple_choice', options: ['go', 'went', 'gone'] });
+    const { el, answers } = await create({
+      ...BASE,
+      type: 'multiple_choice',
+      options: ['go', 'went', 'gone'],
+    });
     const buttons = el.querySelectorAll('button');
     expect(buttons.length).toBe(3);
     buttons[1].click();

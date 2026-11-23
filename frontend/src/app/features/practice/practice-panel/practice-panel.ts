@@ -3,48 +3,111 @@ import { TheoryStore } from '../../theory/theory-store';
 import { AnswerForm } from '../answer-form/answer-form';
 import { ExerciseView } from '../exercise-view/exercise-view';
 import { FeedbackView } from '../feedback-view/feedback-view';
+import { SessionStore } from '../../session/session-store';
+import { SessionSummary } from '../../session/session-summary/session-summary';
 import { PracticeStore } from '../practice-store';
 
 /** The practice part: it arranges the exercise, the answer form and the feedback. */
 @Component({
   selector: 'en-practice-panel',
-  imports: [ExerciseView, AnswerForm, FeedbackView],
+  imports: [ExerciseView, AnswerForm, FeedbackView, SessionSummary],
   template: `
     <div class="flex flex-col gap-4 border-2 border-ink p-4 shadow-brutal">
       @if (!theory.selectedId()) {
         <p>Scegli un argomento per iniziare.</p>
       }
-      <button
-        type="button"
-        class="self-start border-2 border-ink bg-accent px-4 py-2 font-bold uppercase shadow-brutal-sm disabled:opacity-60"
-        [disabled]="!canStart()"
-        (click)="start()"
-      >
-        [ Nuovo esercizio ]
-      </button>
-
-      @if (practice.status() === 'loading') {
-        <p aria-live="polite">Il Tutor sta scrivendo l'esercizio<span class="cursor-blink">_</span></p>
-      }
-
-      @if (practice.exercise(); as exercise) {
-        <en-exercise-view [exercise]="exercise" />
-        @if (practice.status() !== 'feedback') {
-          <en-answer-form
-            [exercise]="exercise"
-            [disabled]="practice.status() === 'checking'"
-            (answered)="practice.submit($event)"
-          />
+      @if (session.summaryOpen()) {
+        <en-session-summary
+          [correct]="session.correct()"
+          [total]="session.size"
+          [wrong]="session.wrong()"
+          (showRule)="onShowRule($event)"
+          (restart)="session.start()"
+          (closed)="session.close()"
+        />
+      } @else {
+        @if (session.active()) {
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <p class="font-bold uppercase" aria-live="polite">
+              Esercizio {{ session.position() }}/{{ session.size }} · Corrette
+              {{ session.correct() }}
+            </p>
+            <button
+              type="button"
+              class="border-2 border-ink px-3 py-1 font-bold uppercase shadow-brutal-sm"
+              (click)="session.close()"
+            >
+              [ Chiudi ]
+            </button>
+          </div>
+        } @else {
+          <div class="flex flex-wrap gap-2">
+            <button
+              type="button"
+              class="self-start border-2 border-ink bg-accent px-4 py-2 font-bold uppercase shadow-brutal-sm disabled:opacity-60"
+              [disabled]="!canStart()"
+              (click)="start()"
+            >
+              [ Nuovo esercizio ]
+            </button>
+            <button
+              type="button"
+              class="border-2 border-ink px-4 py-2 font-bold uppercase shadow-brutal-sm disabled:opacity-60"
+              [disabled]="!canStart()"
+              (click)="session.start()"
+            >
+              [ Inizia sessione ({{ session.size }}) ]
+            </button>
+          </div>
         }
-        @if (practice.status() === 'checking') {
-          <p aria-live="polite">Il Tutor sta correggendo<span class="cursor-blink">_</span></p>
+
+        @if (practice.status() === 'loading') {
+          <p aria-live="polite">
+            Il Tutor sta scrivendo l'esercizio<span class="cursor-blink">_</span>
+          </p>
+        }
+
+        @if (practice.exercise(); as exercise) {
+          <en-exercise-view [exercise]="exercise" />
+          @if (practice.status() !== 'feedback') {
+            <en-answer-form
+              [exercise]="exercise"
+              [disabled]="practice.status() === 'checking'"
+              (answered)="practice.submit($event)"
+            />
+          }
+          @if (practice.status() === 'checking') {
+            <p aria-live="polite">Il Tutor sta correggendo<span class="cursor-blink">_</span></p>
+          }
+        }
+
+        <en-feedback-view [feedback]="practice.feedback()" (showRule)="onShowRule()" />
+
+        @if (session.finished() && practice.status() === 'feedback') {
+          <button
+            type="button"
+            class="self-start border-2 border-ink bg-accent px-4 py-2 font-bold uppercase shadow-brutal-sm"
+            (click)="session.showSummary()"
+          >
+            [ Risultato ]
+          </button>
+        }
+        @if (session.canContinue()) {
+          <button
+            type="button"
+            class="self-start border-2 border-ink bg-accent px-4 py-2 font-bold uppercase shadow-brutal-sm"
+            (click)="session.next()"
+          >
+            [ Prossimo ]
+          </button>
         }
       }
-
-      <en-feedback-view [feedback]="practice.feedback()" (showRule)="onShowRule()" />
 
       @if (practice.error(); as message) {
-        <div role="alert" class="flex flex-wrap items-center justify-between gap-3 border-2 border-err p-4 text-err">
+        <div
+          role="alert"
+          class="flex flex-wrap items-center justify-between gap-3 border-2 border-err p-4 text-err"
+        >
           <p>[ ERRORE ] {{ message }}</p>
           @if (practice.retryable()) {
             <button
@@ -63,6 +126,7 @@ import { PracticeStore } from '../practice-store';
 export class PracticePanel {
   protected readonly theory = inject(TheoryStore);
   protected readonly practice = inject(PracticeStore);
+  protected readonly session = inject(SessionStore);
 
   /** Sent after the theory section is highlighted. The shell then shows it. */
   readonly ruleShown = output<void>();
@@ -76,8 +140,8 @@ export class PracticePanel {
     if (id) this.practice.newExercise(id);
   }
 
-  protected onShowRule(): void {
-    this.practice.showRule();
+  protected onShowRule(ruleRef?: string): void {
+    this.practice.showRule(ruleRef);
     this.ruleShown.emit();
   }
 }

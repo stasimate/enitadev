@@ -26,7 +26,9 @@ export class App {
     afterNextRender(
       () => {
         const slug = this.theory.highlighted();
-        document.getElementById(`sec-${slug}`)?.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
+        document
+          .getElementById(`sec-${slug}`)
+          ?.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
       },
       { injector: this.injector },
     );

@@ -9,6 +9,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from enita.agent.formats import completed_sentence
 from enita.models import ExerciseDraft, Feedback, LearnerProfile, TopicProgress
 from enita.storage.exercises import StoredExercise
 
@@ -17,7 +18,8 @@ CREATE TABLE IF NOT EXISTS exercises (
     id TEXT PRIMARY KEY,
     topic_id TEXT NOT NULL,
     draft TEXT NOT NULL,
-    created_at TEXT NOT NULL
+    created_at TEXT NOT NULL,
+    served INTEGER NOT NULL DEFAULT 1
 );
 CREATE TABLE IF NOT EXISTS attempts (
     id TEXT PRIMARY KEY,
@@ -52,6 +54,10 @@ class Database:
         path.parent.mkdir(parents=True, exist_ok=True)
         with self._conn() as c:
             c.executescript(SCHEMA)
+            # Migration for databases made before the exercise pool.
+            cols = {r["name"] for r in c.execute("PRAGMA table_info(exercises)")}
+            if "served" not in cols:
+                c.execute("ALTER TABLE exercises ADD COLUMN served INTEGER NOT NULL DEFAULT 1")
 
     @contextmanager
     def _conn(self) -> Iterator[sqlite3.Connection]:
@@ -65,14 +71,51 @@ class Database:
 
     # --- Exercises ---------------------------------------------------------------------
 
-    def add_exercise(self, topic_id: str, draft: ExerciseDraft) -> StoredExercise:
+    def add_exercise(
+        self, topic_id: str, draft: ExerciseDraft, served: bool = True
+    ) -> StoredExercise:
+        """Save an approved exercise. served=False puts it in the pool for later."""
         item = StoredExercise(id=uuid.uuid4().hex, topic_id=topic_id, draft=draft)
         with self._conn() as c:
             c.execute(
-                "INSERT INTO exercises VALUES (?, ?, ?, ?)",
-                (item.id, topic_id, draft.model_dump_json(), _now()),
+                "INSERT INTO exercises (id, topic_id, draft, created_at, served) "
+                "VALUES (?, ?, ?, ?, ?)",
+                (item.id, topic_id, draft.model_dump_json(), _now(), int(served)),
             )
         return item
+
+    def take_pooled(self, topic_id: str, exercise_type: str | None = None) -> StoredExercise | None:
+        """Take the oldest exercise of the pool for a topic and mark it as served."""
+        with self._conn() as c:
+            rows = c.execute(
+                "SELECT id, topic_id, draft FROM exercises WHERE topic_id = ? AND served = 0 "
+                "ORDER BY created_at, rowid",
+                (topic_id,),
+            ).fetchall()
+            for row in rows:
+                draft = ExerciseDraft.model_validate_json(row["draft"])
+                if exercise_type is None or draft.type == exercise_type:
+                    c.execute("UPDATE exercises SET served = 1 WHERE id = ?", (row["id"],))
+                    return StoredExercise(id=row["id"], topic_id=topic_id, draft=draft)
+        return None
+
+    def recent_exercises(self, topic_id: str, limit: int = 10) -> list[str]:
+        """The solved sentences of the latest exercises of a topic (written by the agents)."""
+        with self._conn() as c:
+            rows = c.execute(
+                "SELECT draft FROM exercises WHERE topic_id = ? "
+                "ORDER BY created_at DESC, rowid DESC LIMIT ?",
+                (topic_id, limit),
+            ).fetchall()
+        drafts = [ExerciseDraft.model_validate_json(r["draft"]) for r in rows]
+        return [f"{d.type}: {completed_sentence(d)}" for d in drafts]
+
+    def count_pooled(self, topic_id: str) -> int:
+        with self._conn() as c:
+            row = c.execute(
+                "SELECT COUNT(*) n FROM exercises WHERE topic_id = ? AND served = 0", (topic_id,)
+            ).fetchone()
+        return int(row["n"])
 
     def get_exercise(self, exercise_id: str) -> StoredExercise | None:
         with self._conn() as c:

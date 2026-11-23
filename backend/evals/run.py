@@ -4,7 +4,7 @@
     uv run python -m evals.run review     # only the review eval
 
 Gates:
-- review: the decision (rules check + verifier + option check) is correct in >= 7 of 8 cases.
+- review: the decision (rules check + verifier + option check) is correct in >= 10 of 11 cases.
 - trajectory: 3 of 3 generations are approved, the writer calls get_theory_card first and
   then get_learner_profile, and each generation is in the time budget.
 """
@@ -20,6 +20,7 @@ from typing import Any
 
 from datapizza.tracing import ContextTracing
 
+from enita.agent.formats import prepare
 from enita.agent.pipeline import DecisionNode, VerifierNode, generate_exercise, rule_issues
 from enita.audit import summarize_spans
 from enita.content.loader import ContentRepository
@@ -27,7 +28,7 @@ from enita.practice.service import default_agents, mcp_tools
 from enita.settings import get_settings
 from evals.cases import REVIEW_CASES, TRAJECTORY_TOPICS
 
-REVIEW_MIN_PASS = 7
+REVIEW_MIN_PASS = 10  # of 11 cases: one known edge case may change between runs
 TIME_BUDGET_S = 30.0
 REPORT = Path(__file__).parent / "last_report.json"
 
@@ -39,11 +40,10 @@ async def review_eval() -> dict[str, Any]:
     results = []
     for case in REVIEW_CASES:
         card = content.get(case.topic_id).as_markdown()
-        rules = rule_issues(case.draft, case.draft.type)
-        verification = await VerifierNode(verifier).a_run(draft=case.draft, card=card)
-        decision = DecisionNode().run(
-            draft=case.draft, rule_issues=rules, verification=verification
-        )
+        draft = prepare(case.draft)
+        rules = rule_issues(draft, draft.type)
+        verification = await VerifierNode(verifier).a_run(draft=draft, card=card)
+        decision = DecisionNode().run(draft=draft, rule_issues=rules, verification=verification)
         results.append(
             {
                 "id": case.id,

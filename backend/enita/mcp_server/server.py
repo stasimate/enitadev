@@ -3,6 +3,8 @@
 Start it with stdio: `uv run python -m enita.mcp_server`.
 """
 
+import json
+
 from mcp.server.fastmcp import FastMCP
 from mcp.server.fastmcp.exceptions import ToolError
 
@@ -37,10 +39,14 @@ def build_server(content: ContentRepository | None = None, db: Database | None =
     def get_learner_profile(topic_id: str) -> str:
         """Return the progress of the student on a topic, as JSON.
 
-        It contains aggregates only: attempts, accuracy and the rule references
-        (`topic#section`) with the most wrong answers. Use it to practise the weak rules.
+        - topics, frequent_errors: aggregates only (attempts, accuracy, and the rule
+          references `topic#section` with the most wrong answers). Practise the weak rules.
+        - recent_exercises: the solved sentences of the latest exercises. Do not repeat them:
+          use other verbs, subjects and situations.
         """
-        return store.profile(topic_id).model_dump_json()
+        data = store.profile(topic_id).model_dump()
+        data["recent_exercises"] = store.recent_exercises(topic_id)
+        return json.dumps(data, ensure_ascii=False)
 
     return server
 

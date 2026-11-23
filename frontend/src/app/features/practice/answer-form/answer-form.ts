@@ -1,11 +1,26 @@
 import { Component, input, output, signal } from '@angular/core';
 import { Exercise } from '../../../core/models';
+import { ReorderInput } from '../reorder-input/reorder-input';
+import { WordPicker } from '../word-picker/word-picker';
 
-/** Collects the answer: a text input for fill_blank, one button for each option otherwise. */
+/** Picks the answer input by exercise type. Text input, option buttons, chunks or words. */
 @Component({
   selector: 'en-answer-form',
+  imports: [ReorderInput, WordPicker],
   template: `
-    @if (exercise().type === 'multiple_choice') {
+    @if (exercise().type === 'reorder') {
+      <en-reorder-input
+        [chunks]="exercise().options"
+        [disabled]="disabled()"
+        (answered)="answered.emit($event)"
+      />
+    } @else if (exercise().type === 'find_error') {
+      <en-word-picker
+        [words]="exercise().options"
+        [disabled]="disabled()"
+        (answered)="answered.emit($event)"
+      />
+    } @else if (exercise().type === 'multiple_choice') {
       <div class="flex flex-col gap-2" role="group" aria-label="Scegli la risposta">
         @for (option of exercise().options; track option) {
           <button

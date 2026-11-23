@@ -25,7 +25,10 @@ const LABELS: Record<Verdict, string> = {
             >{{ label() }}</span
           >
         </p>
-        <p><span class="text-sm font-bold uppercase">Risposta corretta:</span> {{ fb.correct_answer }}</p>
+        <p>
+          <span class="text-sm font-bold uppercase">Risposta corretta:</span>
+          {{ fb.correct_answer }}
+        </p>
         <p>{{ fb.explanation }}</p>
         <button
           type="button"

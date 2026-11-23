@@ -20,7 +20,7 @@ class ReviewCase:
 
 
 def _d(**kw) -> ExerciseDraft:
-    base = {"options": [], "rule_section": "regola"}
+    base = {"options": [], "correction": "", "rule_section": "regola"}
     return ExerciseDraft(**{**base, **kw})
 
 
@@ -136,9 +136,54 @@ REVIEW_CASES: list[ReviewCase] = [
     ),
 ]
 
+REVIEW_CASES += [
+    ReviewCase(
+        id="good-find-error",
+        topic_id="present-simple",
+        draft=_d(
+            type="find_error",
+            instruction="Trova la parola sbagliata.",
+            prompt="My sister don't like coffee.",
+            answers=["don't"],
+            correction="doesn't",
+            rule_section="attenzione",
+            explanation="Con he/she/it la negazione usa doesn't.",
+        ),
+        expect_approved=True,
+        defect="none",
+    ),
+    ReviewCase(
+        id="find-error-two-errors",
+        topic_id="past-simple",
+        draft=_d(
+            type="find_error",
+            instruction="Trova la parola sbagliata.",
+            prompt="Yesterday he goed to the cinema and buyed a ticket.",
+            answers=["goed"],
+            correction="went",
+            explanation="Go è irregolare: went.",
+        ),
+        expect_approved=False,
+        defect="'buyed' is also wrong",
+    ),
+    ReviewCase(
+        id="transform-wrong-answer",
+        topic_id="present-simple",
+        draft=_d(
+            type="transform",
+            instruction="Volgi la frase alla forma negativa.",
+            prompt="He plays tennis on Sundays.",
+            answers=["He doesn't plays tennis on Sundays."],
+            explanation="Con doesn't il verbo resta alla forma base.",
+        ),
+        expect_approved=False,
+        defect="the expected answer is wrong English (doesn't plays)",
+    ),
+]
+
 # Topics for the trajectory eval (real generation through MCP).
 TRAJECTORY_TOPICS: list[tuple[str, str]] = [
-    ("present-simple", "fill_blank"),
-    ("past-simple", "multiple_choice"),
-    ("comparatives-superlatives", "fill_blank"),
+    ("present-simple", "find_error"),
+    ("past-simple", "reorder"),
+    ("comparatives-superlatives", "transform"),
 ]

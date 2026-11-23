@@ -30,6 +30,7 @@ def create_app() -> FastAPI:
 
     app.include_router(topics.router)
     app.include_router(exercises.router)
+    app.include_router(exercises.topics_router)
     app.include_router(learner.router)
 
     # One image for production: FastAPI also serves the Angular build.
