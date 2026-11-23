@@ -15,8 +15,10 @@ def _key(value, name: str) -> str:
     return value.get_secret_value()
 
 
-def get_client(settings: Settings | None = None) -> Client:
+def get_client(settings: Settings | None = None, model: str | None = None) -> Client:
     s = settings or get_settings()
+    if model:
+        s = s.model_copy(update={"model": model})
     match s.provider:
         case "openai":
             from datapizza.clients.openai import OpenAIClient

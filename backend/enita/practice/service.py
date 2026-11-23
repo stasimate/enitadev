@@ -56,10 +56,9 @@ def mcp_tools(settings: Settings) -> ToolsProvider:
 
 def default_agents(settings: Settings) -> AgentsFactory:
     def factory(tools: list[Any]) -> tuple[AgentLike, AgentLike]:
-        client = get_client(settings)
         writer = Agent(
             name="writer",
-            client=client,
+            client=get_client(settings, settings.writer_model),
             system_prompt=WRITER_SYSTEM,
             tools=tools,
             output_cls=ExerciseDraft,
@@ -67,7 +66,7 @@ def default_agents(settings: Settings) -> AgentsFactory:
         )
         verifier = Agent(
             name="verifier",
-            client=client,
+            client=get_client(settings, settings.verifier_model),
             system_prompt=VERIFIER_SYSTEM,
             output_cls=Verification,
             max_steps=1,

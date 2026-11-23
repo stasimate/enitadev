@@ -20,10 +20,13 @@ class Settings(BaseSettings):
     )
 
     provider: Provider = "openai"
-    model: str = "gpt-4o-mini"
+    model: str = "gpt-4.1-mini"
+    # Optional model routing (RF-31). Empty: the agent uses `model`.
+    writer_model: str | None = None
+    verifier_model: str | None = None
     llm_timeout_s: float = 20.0
     # The writer makes a new draft when the verifier rejects one. This is the maximum attempts.
-    max_writer_attempts: int = 2
+    max_writer_attempts: int = 3
 
     # Provider keys use the standard names, without the ENITA_ prefix.
     openai_api_key: SecretStr | None = Field(None, validation_alias="OPENAI_API_KEY")
