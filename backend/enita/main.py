@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from enita import __version__
-from enita.api import exercises, topics
+from enita.api import exercises, learner, topics
 from enita.settings import get_settings
 
 
@@ -30,6 +30,7 @@ def create_app() -> FastAPI:
 
     app.include_router(topics.router)
     app.include_router(exercises.router)
+    app.include_router(learner.router)
 
     # One image for production: FastAPI also serves the Angular build.
     # Mount it last, so that the /api routes have priority.

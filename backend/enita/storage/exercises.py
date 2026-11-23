@@ -1,6 +1,5 @@
-"""Exercise storage. In memory for M2. Milestone M3 moves it to SQLite."""
+"""The stored exercise (with its solution) and its public view."""
 
-import uuid
 from dataclasses import dataclass
 
 from enita.models import Exercise, ExerciseDraft
@@ -22,16 +21,3 @@ class StoredExercise:
             prompt=self.draft.prompt,
             options=self.draft.options,
         )
-
-
-class ExerciseStore:
-    def __init__(self) -> None:
-        self._items: dict[str, StoredExercise] = {}
-
-    def add(self, topic_id: str, draft: ExerciseDraft) -> StoredExercise:
-        item = StoredExercise(id=uuid.uuid4().hex, topic_id=topic_id, draft=draft)
-        self._items[item.id] = item
-        return item
-
-    def get(self, exercise_id: str) -> StoredExercise | None:
-        return self._items.get(exercise_id)

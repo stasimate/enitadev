@@ -106,3 +106,19 @@ class Feedback(BaseModel):
     correct_answer: str
     explanation: str
     rule_ref: str
+
+
+class TopicProgress(BaseModel):
+    topic_id: str
+    attempts: int
+    correct: int
+    accuracy: float
+
+
+class LearnerProfile(BaseModel):
+    """Permanent memory of the student (RF-20). It contains aggregates only."""
+
+    topics: list[TopicProgress] = []
+    frequent_errors: dict[str, int] = Field(
+        default_factory=dict, description="rule_ref → number of wrong answers"
+    )

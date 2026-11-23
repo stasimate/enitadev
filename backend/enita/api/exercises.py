@@ -17,15 +17,20 @@ from enita.practice.service import (
     TopicNotFound,
 )
 from enita.settings import get_settings
-from enita.storage.exercises import ExerciseStore
+from enita.storage.db import Database
 
 log = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/exercises", tags=["exercises"])
 
 
 @lru_cache
+def get_db() -> Database:
+    return Database(get_settings().db_path)
+
+
+@lru_cache
 def get_practice() -> PracticeService:
-    return PracticeService(get_settings(), get_content(), ExerciseStore())
+    return PracticeService(get_settings(), get_content(), get_db())
 
 
 Practice = Annotated[PracticeService, Depends(get_practice)]

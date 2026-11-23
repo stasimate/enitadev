@@ -13,6 +13,7 @@ from datapizza.pipeline import DagPipeline
 from pydantic import BaseModel
 
 from enita.agent.prompts import VERIFIER_TASK, WRITER_FEEDBACK, WRITER_TASK
+from enita.guardrails.checks import output_issues
 from enita.models import BLANK, MAX_ANSWER_LENGTH, ExerciseDraft, ExerciseType, Verification
 from enita.practice.checker import normalize
 
@@ -76,6 +77,7 @@ def rule_issues(draft: ExerciseDraft, expected_type: ExerciseType | None = None)
             issues.append("A multiple_choice exercise must have 3 or 4 different options.")
         if len(draft.answers) != 1 or normalize(draft.answers[0]) not in options:
             issues.append("A multiple_choice exercise must have one answer equal to an option.")
+    issues += output_issues(draft.instruction, draft.prompt, draft.explanation, draft.answers)
     if draft.prompt.count(BLANK) == 1 and any(
         _repeats_context(draft.prompt, a) for a in draft.answers
     ):

@@ -8,10 +8,12 @@ from mcp.server.fastmcp.exceptions import ToolError
 
 from enita.content.loader import ContentRepository
 from enita.settings import get_settings
+from enita.storage.db import Database
 
 
-def build_server(content: ContentRepository | None = None) -> FastMCP:
+def build_server(content: ContentRepository | None = None, db: Database | None = None) -> FastMCP:
     repo = content or ContentRepository(get_settings().content_dir)
+    store = db or Database(get_settings().db_path)
     server = FastMCP(
         name="enita",
         instructions="Theory cards of Enita: English grammar for Italian speakers (CEFR A1-B1).",
@@ -29,6 +31,15 @@ def build_server(content: ContentRepository | None = None) -> FastMCP:
             known = ", ".join(t.id for t in repo.list_topics())
             raise ToolError(f"Unknown topic '{topic_id}'. Known topics: {known}")
         return card.as_markdown()
+
+    @server.tool()
+    def get_learner_profile(topic_id: str) -> str:
+        """Return the progress of the student on a topic, as JSON.
+
+        It contains aggregates only: attempts, accuracy and the rule references
+        (`topic#section`) with the most wrong answers. Use it to practise the weak rules.
+        """
+        return store.profile(topic_id).model_dump_json()
 
     return server
 
