@@ -10,7 +10,12 @@ from enita.agent.clients import ProviderConfigError
 from enita.agent.pipeline import GenerationError
 from enita.api.topics import get_content
 from enita.models import AnswerRequest, Exercise, ExerciseRequest, Feedback
-from enita.practice.service import ExerciseNotFound, PracticeService, TopicNotFound
+from enita.practice.service import (
+    ExerciseNotFound,
+    PracticeService,
+    ProviderCallError,
+    TopicNotFound,
+)
 from enita.settings import get_settings
 from enita.storage.exercises import ExerciseStore
 
@@ -34,6 +39,11 @@ async def create_exercise(req: ExerciseRequest, practice: Practice) -> Exercise:
         raise HTTPException(404, f"Topic '{req.topic_id}' not found") from None
     except ProviderConfigError as exc:
         raise HTTPException(503, str(exc)) from None
+    except ProviderCallError as exc:
+        log.error("LLM provider call failed: %s", exc)
+        raise HTTPException(
+            503, "The LLM provider refused the request. Check the API key."
+        ) from None
     except GenerationError as exc:
         log.warning("Exercise generation failed: %s", exc)
         raise HTTPException(502, "The tutor did not make a valid exercise.") from None

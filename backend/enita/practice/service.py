@@ -11,8 +11,8 @@ from datapizza.agents import Agent
 from datapizza.tools.mcp_client import MCPClient
 from datapizza.tracing import ContextTracing
 
-from enita.agent.clients import get_client
-from enita.agent.pipeline import AgentLike, generate_exercise
+from enita.agent.clients import ProviderConfigError, get_client
+from enita.agent.pipeline import AgentLike, GenerationError, generate_exercise
 from enita.agent.prompts import VERIFIER_SYSTEM, WRITER_SYSTEM
 from enita.content.loader import ContentRepository
 from enita.models import Exercise, ExerciseDraft, ExerciseType, Feedback, Verification
@@ -30,6 +30,16 @@ class TopicNotFound(LookupError):
 
 class ExerciseNotFound(LookupError):
     pass
+
+
+class ProviderCallError(RuntimeError):
+    """The LLM provider refused or failed the request (for example, a wrong API key)."""
+
+
+def _root_cause(exc: BaseException) -> BaseException:
+    while isinstance(exc, BaseExceptionGroup) and len(exc.exceptions) == 1:
+        exc = exc.exceptions[0]
+    return exc
 
 
 def mcp_tools(settings: Settings) -> ToolsProvider:
@@ -88,18 +98,27 @@ class PracticeService:
             raise TopicNotFound(topic_id)
         kind: ExerciseType = exercise_type or random.choice(["fill_blank", "multiple_choice"])
 
-        # Audit trail (RNF-04): the trace records the LLM calls, the tool calls and the tokens.
-        with ContextTracing().trace("exercise.generate"):
-            async with self.tools() as tools:
-                writer, verifier = self.agents(tools)
-                result = await generate_exercise(
-                    writer,
-                    verifier,
-                    topic_id=topic_id,
-                    exercise_type=kind,
-                    card=card.as_markdown(),
-                    max_attempts=self.settings.max_writer_attempts,
-                )
+        try:
+            # Audit trail (RNF-04): the trace records the LLM calls, the tool calls and tokens.
+            with ContextTracing().trace("exercise.generate"):
+                async with self.tools() as tools:
+                    writer, verifier = self.agents(tools)
+                    result = await generate_exercise(
+                        writer,
+                        verifier,
+                        topic_id=topic_id,
+                        exercise_type=kind,
+                        card=card.as_markdown(),
+                        max_attempts=self.settings.max_writer_attempts,
+                    )
+        except BaseException as exc:
+            # The MCP stdio client wraps errors in exception groups. Get the root cause.
+            cause = _root_cause(exc)
+            if isinstance(cause, GenerationError | ProviderConfigError):
+                raise cause from exc
+            if isinstance(cause, Exception):
+                raise ProviderCallError(f"{type(cause).__name__}: {cause}") from exc
+            raise
         return self.store.add(topic_id, result.draft).public()
 
     def answer(self, exercise_id: str, answer: str) -> Feedback:

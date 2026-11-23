@@ -82,6 +82,7 @@ export class PracticeStore {
   private messageFor(err: unknown): string {
     const status = err instanceof HttpErrorResponse ? err.status : 0;
     if (status === 502) return 'Il Tutor non è riuscito a creare un esercizio. Riprova.';
+    if (status === 503) return 'Il provider IA ha rifiutato la richiesta. Controlla la chiave API nel file .env.';
     if (status === 422) {
       const detail: unknown = (err as HttpErrorResponse).error?.detail;
       return typeof detail === 'string' && detail ? detail : 'Risposta non valida.';
