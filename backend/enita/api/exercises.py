@@ -63,3 +63,15 @@ def answer_exercise(exercise_id: str, req: AnswerRequest, practice: Practice) ->
         return practice.answer(exercise_id, req.answer)
     except ExerciseNotFound:
         raise HTTPException(404, f"Exercise '{exercise_id}' not found") from None
+
+
+topics_router = APIRouter(prefix="/api/topics", tags=["exercises"])
+
+
+@topics_router.post("/{topic_id}/prefetch", status_code=202)
+async def prefetch(topic_id: str, practice: Practice) -> None:
+    """Prepare exercises for a topic in the background. The response does not wait."""
+    try:
+        practice.prefetch(topic_id)
+    except TopicNotFound:
+        raise HTTPException(404, f"Topic '{topic_id}' not found") from None

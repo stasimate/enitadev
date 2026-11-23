@@ -6,6 +6,7 @@ from enita.api.exercises import get_db, get_practice
 from enita.api.topics import get_content
 from enita.guardrails.checks import output_issues, validate_answer
 from enita.main import app
+from enita.models import ExerciseDraft
 from enita.practice.checker import check_answer, normalize
 from enita.practice.service import PracticeService
 from enita.settings import get_settings
@@ -95,7 +96,7 @@ async def test_rules_check_overrides_verifier_approval() -> None:
 def client(tmp_path) -> TestClient:
     db = Database(tmp_path / "test.db")
     service = PracticeService(
-        get_settings(),
+        get_settings().model_copy(update={"pool_size": 0}),
         get_content(),
         db,
         tools=no_tools,
@@ -190,3 +191,87 @@ async def test_generation_timeout(tmp_path) -> None:
     with pytest.raises(GenerationTimeout):
         await service.create("present-simple", "fill_blank")
     assert db.list_audit(1)[0]["outcome"] == "timeout"
+
+
+async def test_pool_serves_prefetched_exercise(tmp_path, monkeypatch) -> None:
+    monkeypatch.setattr("enita.practice.service.random.choice", lambda _: "multiple_choice")
+    db = Database(tmp_path / "pool.db")
+    settings = get_settings().model_copy(update={"pool_size": 1})
+    writer = FakeAgent([CHOICE])
+    service = PracticeService(
+        settings,
+        get_content(),
+        db,
+        tools=no_tools,
+        agents=lambda tools: (writer, FakeAgent([APPROVE])),
+    )
+    service.prefetch("present-simple")
+    await service.wait_idle()
+    assert db.count_pooled("present-simple") == 1
+
+    ex = await service.create("present-simple", "multiple_choice")  # from the pool
+    events = [a["event"] for a in db.list_audit(10)]
+    assert "exercise.serve" in events
+    assert ex.type == "multiple_choice"
+    await service.wait_idle()  # the pool is filled again
+    assert db.count_pooled("present-simple") == 1
+
+
+def test_new_exercise_types() -> None:
+    from enita.agent.formats import completed_sentence, format_issues, is_correct, prepare
+
+    base = {"instruction": "x", "options": [], "rule_section": "regola", "explanation": "x"}
+    reorder = prepare(
+        ExerciseDraft(
+            type="reorder",
+            prompt="Lei va a scuola.",
+            answers=["She goes to school."],
+            correction="",
+            **base,
+        )
+    )
+    assert sorted(reorder.options) == ["She", "goes", "school", "to"]
+    assert reorder.options != ["She", "goes", "to", "school"]
+    assert is_correct(reorder, "she goes to school") and not is_correct(
+        reorder, "goes she to school"
+    )
+    assert format_issues(
+        reorder.model_copy(update={"answers": ["She goes to school", "She go home"]})
+    )
+
+    error = prepare(
+        ExerciseDraft(
+            type="find_error",
+            prompt="He don't like coffee.",
+            answers=["don't"],
+            correction="doesn't",
+            **base,
+        )
+    )
+    assert error.options == ["He", "don't", "like", "coffee"]
+    assert completed_sentence(error) == "He doesn't like coffee."
+    assert is_correct(error, "don't") and not is_correct(error, "like")
+    assert format_issues(error) == []
+    assert format_issues(error.model_copy(update={"answers": ["tea"]}))
+    extra = prepare(
+        ExerciseDraft(
+            type="find_error",
+            prompt="My car is more faster than yours.",
+            answers=["more"],
+            correction="",
+            **base,
+        )
+    )
+    assert (
+        completed_sentence(extra) == "My car is faster than yours." and format_issues(extra) == []
+    )
+
+    transform = ExerciseDraft(
+        type="transform",
+        prompt="She works.",
+        correction="",
+        answers=["She doesn't work.", "She does not work."],
+        **base,
+    )
+    assert format_issues(transform) == [] and is_correct(transform, "she does not work")
+    assert format_issues(transform.model_copy(update={"answers": ["She works."]}))

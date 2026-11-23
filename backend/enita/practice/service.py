@@ -1,12 +1,13 @@
 """Practice use cases: make an exercise (multi-agent + MCP) and check an answer."""
 
 import asyncio
+import logging
 import os
 import random
 import sys
 from collections.abc import AsyncIterator, Callable
 from contextlib import AbstractAsyncContextManager, asynccontextmanager
-from typing import Any
+from typing import Any, get_args
 
 from datapizza.agents import Agent
 from datapizza.tools.mcp_client import MCPClient
@@ -29,6 +30,9 @@ from enita.models import (
 from enita.practice.checker import check_answer
 from enita.settings import Settings
 from enita.storage.db import Database
+from enita.storage.exercises import StoredExercise
+
+log = logging.getLogger(__name__)
 
 ToolsProvider = Callable[[], AbstractAsyncContextManager[list[Any]]]
 AgentsFactory = Callable[[list[Any]], tuple[AgentLike, AgentLike]]
@@ -119,13 +123,57 @@ class PracticeService:
         self.db = db
         self.tools = tools or mcp_tools(settings)
         self.agents = agents or default_agents(settings)
+        self._tasks: set[asyncio.Task[None]] = set()
+        self._refilling: set[str] = set()
 
     async def create(self, topic_id: str, exercise_type: ExerciseType | None) -> Exercise:
+        """Serve an exercise from the pool if one is ready, else generate it now."""
+        if self.content.get(topic_id) is None:
+            raise TopicNotFound(topic_id)
+        item = self.db.take_pooled(topic_id, exercise_type)
+        if item is not None:
+            self.db.add_audit("exercise.serve", "pool", {"exercise_id": item.id}, topic_id)
+        else:
+            item = await self._generate(topic_id, exercise_type, served=True)
+        self._schedule_refill(topic_id)
+        return item.public()
+
+    def prefetch(self, topic_id: str) -> None:
+        """Start to fill the pool of a topic in the background."""
+        if self.content.get(topic_id) is None:
+            raise TopicNotFound(topic_id)
+        self._schedule_refill(topic_id)
+
+    async def wait_idle(self) -> None:
+        """Wait for the background generations (for evals and tests)."""
+        while self._tasks:
+            await asyncio.gather(*list(self._tasks), return_exceptions=True)
+
+    def _schedule_refill(self, topic_id: str) -> None:
+        if self.settings.pool_size <= 0 or topic_id in self._refilling:
+            return
+        self._refilling.add(topic_id)
+        task = asyncio.create_task(self._refill(topic_id))
+        self._tasks.add(task)
+        task.add_done_callback(self._tasks.discard)
+
+    async def _refill(self, topic_id: str) -> None:
+        try:
+            while self.db.count_pooled(topic_id) < self.settings.pool_size:
+                await self._generate(topic_id, None, served=False)
+        except Exception as exc:  # noqa: BLE001 - a background failure must not stop the app
+            log.warning("Background generation for %s failed: %s", topic_id, exc)
+        finally:
+            self._refilling.discard(topic_id)
+
+    async def _generate(
+        self, topic_id: str, exercise_type: ExerciseType | None, *, served: bool
+    ) -> StoredExercise:
         card = self.content.get(topic_id)
         if card is None:
             raise TopicNotFound(topic_id)
-        kind: ExerciseType = exercise_type or random.choice(["fill_blank", "multiple_choice"])
-        record: dict[str, Any] = {"exercise_type": kind}
+        kind: ExerciseType = exercise_type or random.choice(get_args(ExerciseType))
+        record: dict[str, Any] = {"exercise_type": kind, "background": not served}
         outcome = "error"
 
         try:
@@ -166,8 +214,7 @@ class PracticeService:
         finally:
             self.db.add_audit("exercise.generate", outcome, record, topic_id)
 
-        item = self.db.add_exercise(topic_id, result.draft)
-        return item.public()
+        return self.db.add_exercise(topic_id, result.draft, served=served)
 
     def answer(self, exercise_id: str, answer: str) -> Feedback:
         item = self.db.get_exercise(exercise_id)

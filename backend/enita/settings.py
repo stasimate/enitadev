@@ -29,6 +29,8 @@ class Settings(BaseSettings):
     mcp_timeout_s: int = 10
     # The writer makes a new draft when the verifier rejects one. This is the maximum attempts.
     max_writer_attempts: int = 3
+    # Exercises made in advance for each topic (0 disables the pool and the prefetch).
+    pool_size: int = 2
 
     # Provider keys use the standard names, without the ENITA_ prefix.
     openai_api_key: SecretStr | None = Field(None, validation_alias="OPENAI_API_KEY")
