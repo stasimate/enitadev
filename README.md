@@ -11,8 +11,8 @@ Stack: **datapizza-ai** (Agent, tools, Memory, ContextTracing, MCP) · FastAPI �
 - Functional analysis: [`docs/FUNCTIONAL_ANALYSIS.md`](docs/FUNCTIONAL_ANALYSIS.md)
 - Rules for AI coding agents: [`AGENTS.md`](AGENTS.md)
 
-> Status: **M3 complete**. Theory cards, AI exercises, learner profile, guardrails and the
-> audit trail operate. The evals and the final Docker checks come with milestones M4 and M5
+> Status: **M4 complete**. Theory cards, AI exercises, learner profile, guardrails, audit
+> trail, evals and timeouts operate. The final Docker and README checks come with milestone M5
 > (refer to §8 of the functional analysis).
 
 ## Quick start with Docker
@@ -87,7 +87,14 @@ docker compose -f compose.dev.yaml up
    cd backend && uv run pytest && uv run ruff check .
    ```
 
-2. Run the frontend tests:
+2. Run the evals with the real LLM (they need an API key in `.env`). The exit code is 0
+   only if all gates pass:
+
+   ```bash
+   cd backend && uv run python -m evals.run
+   ```
+
+3. Run the frontend tests:
 
    ```bash
    cd frontend && npm test -- --watch=false

@@ -91,8 +91,8 @@ Priority: **M** = must (minimum for delivery), **S** = should, **C** = could.
 | RNF-02 | The exercise generation is **multi-agent** (writer and verifier in a DagPipeline). An MCP server supplies the tools. Refer to §5.1. | Orchestration |
 | RNF-03 | There is a minimum of one **guardrail**. It validates the input (the student answer) and the output (the AI correction) of the tool `check_answer`. | Security |
 | RNF-04 | `datapizza.tracing.ContextTracing` records an **audit trail** for each exercise and each correction. | Governance |
-| RNF-05 | An **eval** gives a pass or fail result: 8 correction and trajectory tasks. The pass limit is 7 of 8. | Reliability |
-| RNF-06 | The critical tool (AI correction) has a **timeout** of 20 s. When the time ends, the system uses the fixed-rule check, or it tells the user to try again. | S14 |
+| RNF-05 | **Evals** give a pass or fail result (`uv run python -m evals.run`, exit code 0 only if all gates pass): a review eval (8 drafts, gate 7 of 8) and a trajectory eval (3 real generations, gate 3 of 3). Refer to §6. | Reliability |
+| RNF-06 | The critical AI tool (the exercise generation: writer, verifier and retries) has a **timeout** of 45 s (`ENITA_GENERATION_TIMEOUT_S`). Each MCP tool call has a timeout of 10 s (`ENITA_MCP_TIMEOUT_S`). When the time ends, the API returns 504 and the audit trail records `timeout`. | S14 |
 | RNF-07 | One **Dockerfile** builds one image and starts the application on the local computer. FastAPI serves the API and the Angular build. `docker compose up` starts the image. | Production / S15 |
 | RNF-08 | The README tells how to install and start the application. The project is complete only when it operates. | Production |
 | RNF-09 | The UI is accessible (WCAG AA: contrast, visible focus, ARIA). The style is brutalist and minimal, with a monospace font (§7). | — |
@@ -210,7 +210,19 @@ ContextTracing. This is an item of "Cosa alza il livello" in the brief.
   tokens, seconds), attempts, rejected issues and the outcome. SQLite (`audit` table) keeps
   each record. Corrections and guardrail events are also records. `GET /api/audit` shows them.
 - **Lethal trifecta.** The tutor has no network tools and no tools that write to external systems. It reads only checked content. It writes only local attempts. Thus, the tutor has no path to send data out (exfiltration).
-- **Eval** (`evals/`): 8 cases `(exercise, answer, expected result)` and one trajectory check. The trajectory check makes sure that the tutor calls `get_theory_card` before it checks an answer. Command: `uv run python -m evals.run`. The exit code is not 0 when the result is less than 7 of 8. Later, CI uses this eval as a gate.
+- **Evals** (`backend/evals/`). Command: `uv run python -m evals.run`. The run writes
+  `evals/last_report.json` and the exit code is 0 only if all gates pass. CI can use it as a
+  deploy gate.
+  - **Review eval (LLM-as-judge with a rubric).** 8 fixed drafts: 2 good drafts and 6 drafts
+    with a known defect (wrong English answer, two correct options, repeated words, wrong
+    explanation, leaked solution, ambiguous article). The decision (rules check + verifier +
+    option check) must be correct in 7 of 8 cases. The ambiguous article is a known edge
+    case: the result changes between runs (8/8 and 7/8 observed).
+  - **Trajectory eval.** 3 real generations through MCP. Each must be approved, the writer
+    must call `get_theory_card` first and then `get_learner_profile` (also on a retry), and
+    each generation must take 30 s or less. Gate: 3 of 3.
+  - The first run found a real defect: on some tasks the writer did not call
+    `get_learner_profile`. The fix: the writer calls both tools in parallel in its first step.
 - **RAGAS** (RAG phase): faithfulness and context precision for "Spiegami meglio".
 - **Docker**: one image with a multi-stage build. Stage 1 (Node 24) builds the Angular application. Stage 2 (Python 3.12, uv) installs the backend and copies the Angular build. FastAPI serves the API at `/api` and the static frontend at `/`. `compose.yaml` starts the image and reads `.env`.
 
@@ -235,7 +247,7 @@ Each milestone must end with a part that operates.
 | M1 | Theory cards (6 topics, A1 to B1), topics API, split-screen UI with the theory, Docker image and Docker dev stack | RF-01..03 | done |
 | M2 | Writer + verifier agents (DagPipeline) for more than one provider, MCP server with `get_theory_card`, closed exercises with fixed-rule check, practice UI | RF-10..12, RF-14, RF-30, RF-31, S12 | done |
 | M3 | SQLite for exercises, attempts and audit, learner profile (API and MCP tool), input and output guardrails, ContextTracing audit trail | RF-15, RF-20, RF-21, S13 | done |
-| M4 | Eval (8 tasks) and timeout on the AI correction | S14 | 1 h |
+| M4 | Review eval (8 cases) and trajectory eval (3 generations), timeout on the generation and on MCP tool calls | S14 | done |
 | M5 | Dockerfile, compose and README | S15 | 45 min |
 | M6 | *(if time is available)* open exercises, "Spiegami meglio", RAG on Qdrant and RAGAS | RF-05, RF-13 | 2 h |
 
@@ -252,6 +264,7 @@ Each milestone must end with a part that operates.
 | Commits | Conventional Commits, no AI attribution | Decision of the project owner. |
 | Provider | OpenAI, Gemini, Anthropic, Ollama through a factory | The brief requires more than one provider. |
 | Persistence | SQLite (`exercises`, `attempts`, `audit`) | No infrastructure. It is sufficient for one user. The exercises stay after a restart. |
+| Timeouts | Generation 45 s, MCP tool call 10 s | The generation is the critical AI tool. With retries it takes 5-25 s in the live tests. |
 | Learner profile | Aggregates only, flagged attempts excluded | Raw answers are untrusted text. They must not reach the writer prompt (prompt injection). |
 | Frontend runtime | Angular 22.3 on Node 24 (`.nvmrc`) | Angular 22 requires Node 24.15 or later. It installs with npm 11 and no `legacy-peer-deps`. |
 | Documentation | English, ASD-STE100 | Requirement of the project owner. The chat stays in Italian. |

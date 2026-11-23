@@ -133,8 +133,11 @@ Do not write a test for code that the framework already tests.
 - Each `rule_ref` has the format `<topic_id>#<section-slug>`. It must exist in the cards.
   The output guardrail checks this.
 - Put each agent run in `ContextTracing` (audit trail, RNF-04).
-- The LLM correction tool has a **timeout** (`ENITA_LLM_TIMEOUT_S`, default 20 s) and a
-  controlled fallback (RNF-06).
+- The generation has a **timeout** (`ENITA_GENERATION_TIMEOUT_S`, default 45 s) and each
+  MCP tool call has one (`ENITA_MCP_TIMEOUT_S`, default 10 s). A timeout gives HTTP 504 and
+  an audit record (RNF-06).
+- When you change a prompt, the pipeline or the model, run `uv run python -m evals.run`.
+  Do not commit a change that makes the evals fail.
 - Persistence: SQLite at `backend/data/enita.db` (git ignores it). Use only `enita.storage.db.Database`
   to access it.
 - Style: type hints on all code, small pure functions, no `ruff` errors, line length 100.
