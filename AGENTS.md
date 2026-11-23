@@ -198,6 +198,9 @@ by default, Signal Forms, native control flow, `inject()`, WCAG AA). Also obey t
 ## Workflow
 
 - Work in small increments that operate. Follow the milestones in the specification (§8).
+- Branches: do all the work on `develop` (or on a feature branch from `develop`). Merge
+  `develop` into `main` only for a release (delivery, demo). Do not commit directly on `main`.
+  Do not rewrite the history of `main` or `develop`.
 - Commit messages: use **Conventional Commits** (`type(scope): description`, imperative
   mood). Types: `feat`, `fix`, `docs`, `test`, `refactor`, `chore`, `build`, `ci`.
   Scopes: `backend`, `frontend`, `content`, `evals`, `infra`. Example:
