@@ -4,7 +4,8 @@
     uv run python -m evals.run review     # only the review eval
 
 Gates:
-- review: the decision (rules check + verifier + option check) is correct in >= 10 of 11 cases.
+- review: the decision (rules check + verifier + option check) is correct in >= 12 of 13 cases.
+- grading: the grader gives the expected verdict for >= 7 of 8 written answers.
 - trajectory: 3 of 3 generations are approved, the writer calls get_theory_card first and
   then get_learner_profile, and each generation is in the time budget.
 - rag: 4 real "Spiegami meglio" explanations, no errors, mean RAGAS faithfulness and context
@@ -28,11 +29,12 @@ from enita.audit import summarize_spans
 from enita.content.loader import ContentRepository
 from enita.practice.service import default_agents, mcp_tools
 from enita.settings import get_settings
-from evals.cases import RAG_TOPICS, REVIEW_CASES, TRAJECTORY_TOPICS
+from evals.cases import GRADE_CASES, RAG_TOPICS, REVIEW_CASES, TRAJECTORY_TOPICS
 
 RAG_MIN_FAITHFULNESS = 0.85  # measured 0.954 (2026-11-23)
 RAG_MIN_CONTEXT_PRECISION = 0.70  # measured 0.819 (2026-11-23)
-REVIEW_MIN_PASS = 10  # of 11 cases: one known edge case may change between runs
+REVIEW_MIN_PASS = 12  # of 13 cases: one known edge case may change between runs
+GRADE_MIN_PASS = 7  # of 8 cases
 TIME_BUDGET_S = 30.0
 REPORT = Path(__file__).parent / "last_report.json"
 
@@ -92,7 +94,10 @@ async def trajectory_eval() -> dict[str, Any]:
                     )
                     attempts = result.attempts
             except Exception as exc:  # noqa: BLE001 - the eval records every failure
-                error = f"{type(exc).__name__}: {exc}"[:300]
+                from enita.practice.service import _root_cause
+
+                cause = _root_cause(exc)
+                error = f"{type(cause).__name__}: {cause}"[:300]
             summary = summarize_spans(trace.get_spans())
         seconds = round(time.perf_counter() - start, 1)
         tools_used = [
@@ -216,13 +221,46 @@ async def rag_eval() -> dict[str, Any]:
     }
 
 
+async def grading_eval() -> dict[str, Any]:
+    """The grader on fixed written answers with a known verdict (LLM-as-judge accuracy)."""
+    from enita.practice.tutor import default_grader, grade_answer
+
+    settings = get_settings()
+    content = ContentRepository(settings.content_dir)
+    results = []
+    for case in GRADE_CASES:
+        grade = await grade_answer(
+            default_grader(settings), content.get(case.topic_id), case.draft, case.answer, []
+        )
+        results.append(
+            {
+                "id": case.id,
+                "expected": list(case.expect),
+                "verdict": grade.verdict,
+                "passed": grade.verdict in case.expect,
+                "feedback": grade.feedback,
+                "hint": grade.hint,
+            }
+        )
+    passed = sum(r["passed"] for r in results)
+    return {
+        "name": "grading",
+        "score": f"{passed}/{len(results)}",
+        "gate": f">= {GRADE_MIN_PASS}/{len(results)}",
+        "passed": passed >= GRADE_MIN_PASS,
+        "cases": results,
+    }
+
+
 def _print(report: dict[str, Any]) -> None:
     for ev in report["evals"]:
         mark = "PASS" if ev["passed"] else "FAIL"
         print(f"\n[{mark}] {ev['name']}: {ev['score']} (gate {ev['gate']})")
         for c in ev["cases"]:
             ok = "ok  " if c["passed"] else "FAIL"
-            if ev["name"] == "rag":
+            if ev["name"] == "grading":
+                print(f"  {ok} {c['id']}: expected {c['expected']}, got {c['verdict']}")
+            elif ev["name"] == "rag":
                 print(
                     f"  {ok} {c['topic_id']}: faithfulness {c.get('faithfulness')}, "
                     f"context precision {c.get('context_precision')}, "
@@ -247,7 +285,12 @@ def _print(report: dict[str, Any]) -> None:
 async def main(selected: list[str]) -> int:
     logging.disable(logging.WARNING)
     settings = get_settings()
-    runners = {"review": review_eval, "trajectory": trajectory_eval, "rag": rag_eval}
+    runners = {
+        "review": review_eval,
+        "trajectory": trajectory_eval,
+        "grading": grading_eval,
+        "rag": rag_eval,
+    }
     names = selected or list(runners)
     evals = [await runners[n]() for n in names]
     report = {

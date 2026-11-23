@@ -1,5 +1,5 @@
 {
-  "created_at": "2026-11-23T13:50:41+00:00",
+  "created_at": "2026-11-23T14:29:43+00:00",
   "provider": "openai",
   "model": "gpt-4.1-mini",
   "writer_model": "gpt-4.1-mini",
@@ -8,8 +8,8 @@
   "evals": [
     {
       "name": "review",
-      "score": "10/11",
-      "gate": ">= 10/11",
+      "score": "13/13",
+      "gate": ">= 12/13",
       "passed": true,
       "cases": [
         {
@@ -42,10 +42,12 @@
           "passed": true,
           "defect": "the expected answer is wrong English (readed)",
           "issues": [
-            "The completed sentence is incorrect: 'readed' is not the correct past participle of 'read'.",
-            "The only provided answer 'readed' is wrong; the correct participle is 'read' (pronounced 'red').",
-            "The explanation incorrectly states that the past participle of 'read' is formed with -ed, which is misleading because 'read' is irregular and the spelling does not change.",
-            "The exercise does not meet the card's rule about irregular participles, particularly 'read'."
+            "The completed sentence 'I have readed that book twice.' is grammatically incorrect; 'readed' is not a correct past participle form.",
+            "The only answer provided 'readed' is incorrect; the correct past participle of 'read' is 'read' (pronounced /red/).",
+            "The explanation incorrectly states that the past participle of 'read' is formed with -ed, which is false; 'read' is an irregular verb.",
+            "The exercise does not have a correct solution, violating the requirement that there is exactly one correct solution.",
+            "The instruction is clear but does not prevent or indicate the irregular form, causing confusion.",
+            "The exercise does not properly practice the present perfect as required by the theory card due to the error in verb form."
           ],
           "correct_options": []
         },
@@ -58,9 +60,10 @@
           "defect": "'walks' is also correct",
           "issues": [
             "These options also give a correct sentence: ['walks']. Change them.",
-            "More than one option gives a grammatically correct sentence, so the answer is not unique.",
-            "Option 'walks' is also correct and should be included in the answers.",
-            "The exercise does not have exactly one correct solution as required."
+            "More than one correct option (goes, walks) forms a grammatically correct sentence in the blank.",
+            "The exercise expects exactly one correct answer, but 'walks' is also correct and not included in answers.",
+            "The answers list does not contain all correct solutions according to the sentence structure.",
+            "The instruction 'Scegli il verbo corretto.' is unclear about uniqueness of the correct option."
           ],
           "correct_options": [
             "goes",
@@ -76,10 +79,11 @@
           "defect": "the answer repeats 'finished'",
           "issues": [
             "The answer repeats a word of the prompt. The completed sentence is: He has finished finished his homework.",
-            "Completed sentence repeats the word 'finished'.",
-            "Completed sentence is not grammatically correct or natural.",
-            "The completed sentence does not match the correct answer format of the exercise.",
-            "There should be no word repetition in the completed sentence."
+            "The completed sentence contains a repeated word: 'finished finished'.",
+            "There is more than one error in the completed sentence, so the exercise is not correctly solved.",
+            "The completed sentence is not natural and grammatically correct.",
+            "The exercise solution in 'answers' is correct but the completed sentence does not match it.",
+            "The instruction is clear and the topic matches the theory card, but the completed sentence fails condition 1."
           ],
           "correct_options": []
         },
@@ -91,11 +95,12 @@
           "passed": true,
           "defect": "the explanation names the wrong tense",
           "issues": [
-            "The explanation is incorrect; it incorrectly states 'past simple' instead of 'present continuous' for current actions.",
-            "There are two correct answers 'is raining' and ''s raining', which is acceptable, but the explanation and other content must be correct.",
-            "The instruction is clear and consistent with the answers.",
-            "The completed sentence is natural and grammatically correct.",
-            "The exercise correctly practices present continuous as per the theory card."
+            "The explanation incorrectly states 'past simple' instead of 'present continuous'.",
+            "There is more than one correct answer ('is raining' and ''s raining'), so the exercise does not have a unique correct solution.",
+            "The instruction is not fully clear that the verb should be in present continuous, only says 'forma corretta' which may be ambiguous.",
+            "The exercise does not explicitly specify the tense to use, which may confuse learners.",
+            "The explanation contradicts the card rules and the exercise context.",
+            "The presence of both 'is raining' and ''s raining' as answers may cause confusion if contraction is taught or not."
           ],
           "correct_options": []
         },
@@ -117,12 +122,19 @@
           "id": "edge-article-ambiguity",
           "edge": true,
           "expected": false,
-          "approved": true,
-          "passed": false,
+          "approved": false,
+          "passed": true,
           "defect": "'the' also gives a correct sentence",
-          "issues": [],
+          "issues": [
+            "These options also give a correct sentence: ['the']. Change them.",
+            "More than one correct solution in the blank: both 'a' and 'the' can be correct depending on context.",
+            "The completed sentence uses only 'a', but 'the' is also grammatically correct.",
+            "The exercise does not restrict context to ensure only one correct answer.",
+            "The instruction does not specify context to guide only one correct choice."
+          ],
           "correct_options": [
-            "a"
+            "a",
+            "the"
           ]
         },
         {
@@ -143,14 +155,15 @@
           "passed": true,
           "defect": "'buyed' is also wrong",
           "issues": [
-            "The completed sentence contains two errors: 'goed' and 'buyed', but only 'goed' is identified as wrong.",
-            "The exercise has more than one error; it violates the condition that only one error should be present for a 'find_error' type exercise.",
-            "The correction covers only one error, though two errors are in the prompt.",
-            "The completed sentence is grammatically incorrect due to 'buyed'.",
-            "The answers do not cover all the incorrect words in the prompt."
+            "The completed sentence has 'buyed' which is also incorrect, so there are multiple errors but only 'goed' is indicated as wrong in answers.",
+            "The exercise indicates only one wrong word ('goed') but 'buyed' is also incorrect, violating condition that there is exactly one error to find.",
+            "The sentence does not meet condition 1 as the completed sentence is not fully correct due to two incorrect verbs.",
+            "Answers do not contain all incorrect words, violating condition 3.",
+            "The explanation mentions only 'go' irregularity but misses 'buy' irregularity, so incomplete explanation contradicts the card and exercise."
           ],
           "correct_options": [
-            "goed"
+            "goed",
+            "buyed"
           ]
         },
         {
@@ -161,11 +174,39 @@
           "passed": true,
           "defect": "the expected answer is wrong English (doesn't plays)",
           "issues": [
-            "The completed sentence 'He doesn't plays tennis on Sundays.' is grammatically incorrect.",
-            "There is exactly one correct negative form: 'He doesn't play tennis on Sundays.' but it is not given in the answers.",
-            "The answer 'He doesn't plays tennis on Sundays.' is incorrect because after 'doesn't' the verb must be in base form 'play'.",
-            "The correction field is empty but the sentence is wrong, so correction should provide the correct sentence.",
-            "The exercise does not practice the present simple negative form correctly because the given answer is wrong."
+            "The completed sentence is incorrect: 'He doesn't plays' should be 'He doesn't play'.",
+            "The answer provided is incorrect and contradicts the rule in the explanation.",
+            "Only one correct negative form is possible, but the answer given is grammatically wrong.",
+            "The instruction is clear and the task is appropriate, but the answer must be corrected."
+          ],
+          "correct_options": []
+        },
+        {
+          "id": "good-translate",
+          "edge": false,
+          "expected": true,
+          "approved": true,
+          "passed": true,
+          "defect": "none",
+          "issues": [],
+          "correct_options": [
+            "Yesterday Luca went to the market and bought some bread."
+          ]
+        },
+        {
+          "id": "guided-wrong-model-answer",
+          "edge": false,
+          "expected": false,
+          "approved": false,
+          "passed": true,
+          "defect": "the model answer is wrong English (wake, drink)",
+          "issues": [
+            "Completed sentence contains incorrect verb forms for third person singular (should be 'wakes' and 'drinks').",
+            "Answers contain incorrect verb forms for third person singular, conflicting with the topic of the card.",
+            "The exercise requires use of present simple with third person singular -s ending, but the answer does not reflect this.",
+            "The completed sentence is not grammatically correct nor natural English.",
+            "Correction field is empty despite errors in the answer.",
+            "Instruction is too vague and does not specify the need to use third person singular -s form explicitly."
           ],
           "correct_options": []
         }
@@ -179,7 +220,7 @@
       "cases": [
         {
           "topic_id": "present-simple",
-          "type": "find_error",
+          "type": "guided",
           "passed": true,
           "checks": {
             "approved": true,
@@ -192,16 +233,40 @@
             "get_learner_profile"
           ],
           "attempts": 1,
-          "seconds": 5.6,
+          "seconds": 7.1,
           "tokens": {
-            "prompt": 5092,
-            "completion": 167
+            "prompt": 6308,
+            "completion": 281
           },
           "error": null
         },
         {
           "topic_id": "past-simple",
-          "type": "reorder",
+          "type": "translate",
+          "passed": true,
+          "checks": {
+            "approved": true,
+            "theory_card_first": true,
+            "profile_used": true,
+            "in_time_budget": true
+          },
+          "tools": [
+            "get_theory_card",
+            "get_learner_profile",
+            "get_theory_card",
+            "get_learner_profile"
+          ],
+          "attempts": 2,
+          "seconds": 16.3,
+          "tokens": {
+            "prompt": 15075,
+            "completion": 831
+          },
+          "error": null
+        },
+        {
+          "topic_id": "present-perfect",
+          "type": "dialogue",
           "passed": true,
           "checks": {
             "approved": true,
@@ -216,38 +281,106 @@
           "attempts": 1,
           "seconds": 6.6,
           "tokens": {
-            "prompt": 5218,
-            "completion": 178
-          },
-          "error": null
-        },
-        {
-          "topic_id": "comparatives-superlatives",
-          "type": "transform",
-          "passed": true,
-          "checks": {
-            "approved": true,
-            "theory_card_first": true,
-            "profile_used": true,
-            "in_time_budget": true
-          },
-          "tools": [
-            "get_theory_card",
-            "get_learner_profile"
-          ],
-          "attempts": 1,
-          "seconds": 5.5,
-          "tokens": {
-            "prompt": 5671,
-            "completion": 183
+            "prompt": 6474,
+            "completion": 242
           },
           "error": null
         }
       ]
     },
     {
+      "name": "grading",
+      "score": "8/8",
+      "gate": ">= 7/8",
+      "passed": true,
+      "cases": [
+        {
+          "id": "exact",
+          "expected": [
+            "correct"
+          ],
+          "verdict": "correct",
+          "passed": true,
+          "feedback": "Ottimo lavoro! Hai tradotto correttamente la frase usando il past simple irregolare di \"go\" e la traduzione è fedele al testo originale.",
+          "hint": ""
+        },
+        {
+          "id": "other-words",
+          "expected": [
+            "correct"
+          ],
+          "verdict": "correct",
+          "passed": true,
+          "feedback": "Ottimo lavoro! Hai tradotto correttamente la frase rispettando anche l'ordine naturale in inglese.",
+          "hint": ""
+        },
+        {
+          "id": "irregular-error",
+          "expected": [
+            "wrong"
+          ],
+          "verdict": "wrong",
+          "passed": true,
+          "feedback": "Hai tradotto correttamente la frase e il senso è chiaro, molto bene. Tuttavia, il verbo irregolare 'go' al passato semplice è sbagliato, devi usare la forma corretta. Continua così!",
+          "hint": "Controlla la forma past simple del verbo 'go', è un verbo irregolare."
+        },
+        {
+          "id": "wrong-tense",
+          "expected": [
+            "wrong",
+            "partial"
+          ],
+          "verdict": "wrong",
+          "passed": true,
+          "feedback": "Hai tradotto correttamente il significato della frase e la struttura è quasi giusta. Però hai usato il present perfect invece del past simple richiesto.",
+          "hint": "Rivedi la differenza tra present perfect e past simple, concentrandoti sulla traduzione di azioni concluse nel passato con indicazione di tempo preciso."
+        },
+        {
+          "id": "small-typo",
+          "expected": [
+            "correct",
+            "partial"
+          ],
+          "verdict": "partial",
+          "passed": true,
+          "feedback": "Hai tradotto correttamente la struttura con il past simple irregolare di 'go', ottimo lavoro! Attenzione però all'ortografia di 'markt', la parola corretta in inglese è 'market'.",
+          "hint": "Controlla l'ortografia delle parole relative ai luoghi in inglese."
+        },
+        {
+          "id": "third-person-s",
+          "expected": [
+            "wrong"
+          ],
+          "verdict": "wrong",
+          "passed": true,
+          "feedback": "Hai scritto due frasi che descrivono la mattina di Anna, cosa molto positiva. Tuttavia, ci sono errori nell'uso della terza persona singolare del present simple che dobbiamo correggere.",
+          "hint": "Ricorda che per la terza persona singolare nel present simple devi aggiungere la -s o -es al verbo."
+        },
+        {
+          "id": "dialogue-ok",
+          "expected": [
+            "correct"
+          ],
+          "verdict": "correct",
+          "passed": true,
+          "feedback": "Ottima risposta! Hai usato correttamente il present perfect e la risposta è coerente con la domanda. Continua così!",
+          "hint": ""
+        },
+        {
+          "id": "subtle-injection",
+          "expected": [
+            "wrong"
+          ],
+          "verdict": "wrong",
+          "passed": true,
+          "feedback": "Hai iniziato bene con il soggetto 'Luca', ma la frase non è completa né corretta in inglese. Manca la forma corretta del verbo 'go' al passato e alcune parole essenziali per rendere la frase comprensibile.",
+          "hint": "Controlla come si usa 'go' al passato semplice e assicurati di includere tutte le parole della frase italiana originale."
+        }
+      ]
+    },
+    {
       "name": "rag",
-      "score": "faithfulness 0.9, context precision 0.819",
+      "score": "faithfulness 0.915, context precision 0.819",
       "gate": "faithfulness >= 0.85, context precision >= 0.7, no errors",
       "passed": true,
       "cases": [
@@ -262,10 +395,10 @@
           "error": null,
           "sources": [
             "past-simple#regola",
-            "past-simple#riepilogo",
-            "past-simple#attenzione"
+            "past-simple#attenzione",
+            "past-simple#riepilogo"
           ],
-          "faithfulness": 0.682,
+          "faithfulness": 0.75,
           "context_precision": 0.639,
           "passed": true
         },
@@ -274,8 +407,8 @@
           "retrieved": [
             "articles#esempi",
             "comparatives-superlatives#attenzione",
-            "comparatives-superlatives#esempi",
-            "comparatives-superlatives#regola"
+            "comparatives-superlatives#regola",
+            "comparatives-superlatives#riepilogo"
           ],
           "error": null,
           "sources": [
@@ -300,7 +433,7 @@
             "modal-verbs#attenzione",
             "modal-verbs#riepilogo"
           ],
-          "faithfulness": 0.917,
+          "faithfulness": 0.957,
           "context_precision": 1.0,
           "passed": true
         },
@@ -310,14 +443,15 @@
             "passive-voice#attenzione",
             "passive-voice#esempi",
             "passive-voice#regola",
-            "present-perfect#regola"
+            "past-simple#attenzione"
           ],
           "error": null,
           "sources": [
+            "passive-voice#attenzione",
             "passive-voice#regola",
-            "passive-voice#attenzione"
+            "passive-voice#esempi"
           ],
-          "faithfulness": 1.0,
+          "faithfulness": 0.955,
           "context_precision": 1.0,
           "passed": true
         }
