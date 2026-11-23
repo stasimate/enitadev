@@ -248,7 +248,7 @@ Each milestone must end with a part that operates.
 | M2 | Writer + verifier agents (DagPipeline) for more than one provider, MCP server with `get_theory_card`, closed exercises with fixed-rule check, practice UI | RF-10..12, RF-14, RF-30, RF-31, S12 | done |
 | M3 | SQLite for exercises, attempts and audit, learner profile (API and MCP tool), input and output guardrails, ContextTracing audit trail | RF-15, RF-20, RF-21, S13 | done |
 | M4 | Review eval (8 cases) and trajectory eval (3 generations), timeout on the generation and on MCP tool calls | S14 | done |
-| M5 | Dockerfile, compose and README | S15 | 45 min |
+| M5 | Docker image tested with the real LLM, Docker dev stack tested, GitHub Actions CI with the eval gate, final README with the MCP setup for other hosts | S15 | done |
 | M6 | *(if time is available)* open exercises, "Spiegami meglio", RAG on Qdrant and RAGAS | RF-05, RF-13 | 2 h |
 
 ## 9. Decisions
@@ -264,6 +264,7 @@ Each milestone must end with a part that operates.
 | Commits | Conventional Commits, no AI attribution | Decision of the project owner. |
 | Provider | OpenAI, Gemini, Anthropic, Ollama through a factory | The brief requires more than one provider. |
 | Persistence | SQLite (`exercises`, `attempts`, `audit`) | No infrastructure. It is sufficient for one user. The exercises stay after a restart. |
+| CI | GitHub Actions: tests and builds on each push. On `main` or a manual run: evals as a gate, then the Docker build and a health check. | The evals call the real LLM and cost money, so they run only for releases. |
 | Timeouts | Generation 45 s, MCP tool call 10 s | The generation is the critical AI tool. With retries it takes 5-25 s in the live tests. |
 | Learner profile | Aggregates only, flagged attempts excluded | Raw answers are untrusted text. They must not reach the writer prompt (prompt injection). |
 | Frontend runtime | Angular 22.3 on Node 24 (`.nvmrc`) | Angular 22 requires Node 24.15 or later. It installs with npm 11 and no `legacy-peer-deps`. |

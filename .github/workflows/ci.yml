@@ -1,0 +1,95 @@
+# CI for Enita.
+# - On each push and pull request: backend lint and tests, frontend build and tests.
+# - On a push to main (release) or a manual run: the LLM evals are a gate for the Docker build.
+#   The evals need the repository secret OPENAI_API_KEY. Without it, the eval job stops.
+
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.12"
+      - run: uv sync --frozen
+      - run: uv run ruff check .
+      - run: uv run ruff format --check .
+      - run: uv run pytest -q
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npx ng build
+      - run: npx ng test --watch=false
+
+  evals:
+    # The evals call the real LLM: they cost money, so they run only for releases.
+    if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
+    needs: backend
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Require the API key
+        run: |
+          if [ -z "$OPENAI_API_KEY" ]; then
+            echo "::error::Add the repository secret OPENAI_API_KEY to run the eval gate."
+            exit 1
+          fi
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.12"
+      - run: uv sync --frozen
+      - name: Eval gate
+        run: uv run python -m evals.run
+      - name: Keep the eval report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-report
+          path: backend/evals/last_report.json
+
+  docker:
+    # A release image is built only after the eval gate passes.
+    needs: [backend, frontend, evals]
+    if: ${{ !cancelled() && needs.backend.result == 'success' && needs.frontend.result == 'success' && needs.evals.result != 'failure' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build the image
+        run: docker build -t enita:ci .
+      - name: Start the image and check the health endpoint
+        run: |
+          docker run -d --name enita -p 8000:8000 enita:ci
+          for i in $(seq 1 30); do curl -sf localhost:8000/api/health && exit 0; sleep 1; done
+          docker logs enita
+          exit 1

@@ -3,7 +3,7 @@
 
 services:
   backend-dev:
-    image: ghcr.io/astral-sh/uv:0.11-python3.12-bookworm-slim
+    image: ghcr.io/astral-sh/uv:0.11-python3.12-trixie-slim
     working_dir: /app/backend
     command: sh -c "uv sync && uv run uvicorn enita.main:app --host 0.0.0.0 --port 8000 --reload"
     environment:

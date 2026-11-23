@@ -44,7 +44,18 @@ import { PracticeStore } from '../practice-store';
       <en-feedback-view [feedback]="practice.feedback()" (showRule)="onShowRule()" />
 
       @if (practice.error(); as message) {
-        <p role="alert" class="border-2 border-err p-4 text-err">[ ERRORE ] {{ message }}</p>
+        <div role="alert" class="flex flex-wrap items-center justify-between gap-3 border-2 border-err p-4 text-err">
+          <p>[ ERRORE ] {{ message }}</p>
+          @if (practice.retryable()) {
+            <button
+              type="button"
+              class="border-2 border-err px-3 py-1 font-bold uppercase shadow-brutal-sm"
+              (click)="practice.retry()"
+            >
+              [ Riprova ]
+            </button>
+          }
+        </div>
       }
     </div>
   `,

@@ -13,11 +13,14 @@ export class PracticeStore {
   private readonly api = inject(Api);
   private readonly theory = inject(TheoryStore);
   private pending: Subscription | null = null;
+  private lastTopicId: string | null = null;
 
   readonly exercise = signal<Exercise | null>(null);
   readonly feedback = signal<Feedback | null>(null);
   readonly status = signal<PracticeStatus>('idle');
   readonly error = signal<string | null>(null);
+  /** True when the last exercise request failed with a temporary error (502, 504). */
+  readonly retryable = signal(false);
 
   constructor() {
     // A new topic makes the old exercise useless.
@@ -29,6 +32,8 @@ export class PracticeStore {
 
   newExercise(topicId: string): void {
     this.pending?.unsubscribe();
+    this.lastTopicId = topicId;
+    this.retryable.set(false);
     this.exercise.set(null);
     this.feedback.set(null);
     this.error.set(null);
@@ -56,6 +61,11 @@ export class PracticeStore {
     });
   }
 
+  /** Ask again for the exercise that failed with a temporary error. */
+  retry(): void {
+    if (this.retryable() && this.lastTopicId) this.newExercise(this.lastTopicId);
+  }
+
   /** Highlight the theory section of the feedback. Only for the topic on screen. */
   showRule(): void {
     const ref = this.feedback()?.rule_ref;
@@ -70,19 +80,23 @@ export class PracticeStore {
     this.exercise.set(null);
     this.feedback.set(null);
     this.error.set(null);
+    this.retryable.set(false);
     this.status.set('idle');
   }
 
   /** A rejected answer lets the student try again. A failed exercise does not. */
   private fail(err: unknown, next: 'error' | 'answering' = 'error'): void {
+    const status = err instanceof HttpErrorResponse ? err.status : 0;
     this.error.set(this.messageFor(err));
+    // Only a failed exercise request with a temporary cause can be retried.
+    this.retryable.set(next === 'error' && (status === 502 || status === 504));
     this.status.set(next);
   }
 
   private messageFor(err: unknown): string {
     const status = err instanceof HttpErrorResponse ? err.status : 0;
-    if (status === 502) return 'Il Tutor non è riuscito a creare un esercizio. Riprova.';
-    if (status === 504) return 'Il Tutor ci mette troppo tempo. Riprova.';
+    if (status === 502) return 'Il Tutor non è riuscito a creare un esercizio.';
+    if (status === 504) return 'Il Tutor ci mette troppo tempo.';
     if (status === 503) return 'Il provider IA ha rifiutato la richiesta. Controlla la chiave API nel file .env.';
     if (status === 422) {
       const detail: unknown = (err as HttpErrorResponse).error?.detail;
