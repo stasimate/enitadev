@@ -153,8 +153,13 @@ Do not write a test for code that the framework already tests.
 
 ## Security rules (mandatory)
 
-- Never put raw student answers in an LLM prompt or in an MCP tool result. The learner
-  profile contains aggregates only.
+- Only the grader prompt may contain the student's raw text, inside the `<student_answer>`
+  data block, and the grader has no tools. Never put raw student text in any other prompt
+  or MCP tool result: the memory and the writer get only grader notes and aggregates.
+- The code decides verdicts (grader: `tutor.decide`; verifier: `option_issues`). Do not
+  trust an LLM's own verdict field.
+- While an exercise is open, do not send solution words to the frontend
+  (`tutor.mask_solution`).
 - The student answer is **not trusted input**. Before a prompt contains it, call
   `guardrails.validate_answer()`. This function limits the length to 300, removes control
   characters and flags injection patterns. In the prompt, put the answer in a block for data.

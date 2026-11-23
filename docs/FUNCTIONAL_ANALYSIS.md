@@ -6,8 +6,9 @@
 
 ## 1. Vision
 
-Enita is a simulator that helps you learn a language. Artificial intelligence (AI) controls
-the simulator.
+Enita is a simulator that helps you learn a language by **writing**. Artificial intelligence
+(AI) controls the simulator: it makes the exercises, corrects your texts and remembers your
+progress for each topic.
 
 The screen has two parts (split screen):
 
@@ -62,9 +63,9 @@ Priority: **M** = must (minimum for delivery), **S** = should, **C** = could.
 | ID | Requirement | Pri |
 |---|---|---|
 | RF-10 | For the selected topic, the user asks for a new exercise. The AI tutor makes the exercise from the topic, the level and the past errors. | M |
-| RF-11 | Exercise types with a fixed-rule check: **fill in the blank**, **multiple choice**, **reorder** (put the word chunks in order, with an Italian hint), **transform** (for example, make the sentence negative), **find the error** (click the wrong word; the fix can be a different word or the removal of the word). Open types (translation, sentence correction) need the AI check (M6). | M (closed types), S (open types) |
+| RF-11 | **Writing is the core.** Four writing types: **translate** (Italian → English), **guided** (write 2-3 sentences for a task of the story), **rewrite** (rewrite or correct a short text), **dialogue** (reply to a character). An AI grader corrects them (RF-13). Closed types with a fixed-rule check (fill in the blank, multiple choice, reorder, transform, find the error) stay as a warm-up: about 20% of the exercises (50% at A1). | M |
 | RF-12 | The system checks closed exercises (fill in the blank, multiple choice) **with fixed rules**. It compares the answer with the list of correct answers. The AI only writes the explanation. | M |
-| RF-13 | The AI checks open exercises (translation, sentence correction) with a scoring guide (rubric). The output is: result `correct` / `partial` / `wrong`, score 0 to 1, explanation in Italian, rule reference (`topic_id#section`). | S |
+| RF-13 | The AI grader corrects writing answers with a rubric. It judges three points (task done, target rule correct, number of other important errors); the code computes the verdict `correct` / `partial` / `wrong` and the score. The output also has Italian feedback, a hint without the solution, error notes and the corrected text. | M |
 | RF-14 | The feedback always shows the result, the correct answer, a short explanation and a link to the rule in the left part. | M |
 | RF-15 | The system keeps a record of each attempt: topic, exercise type, answer, result and the rule that the user did not obey. | M |
 
@@ -80,6 +81,10 @@ Priority: **M** = must (minimum for delivery), **S** = should, **C** = could.
 | RF-25 | **Varied exercises**: the writer does not repeat the sentences, verbs and subjects of the latest exercises of the topic. | S |
 | RF-26 | **Keyboard shortcuts**: 1-4 choose an option, N starts a new exercise, P goes to the next exercise of a session. Keys typed in a text field are ignored. | C |
 | RF-27 | **Pronunciation**: each English example of the theory and of the explanation has a [▶] button that reads it aloud with the speech synthesis of the browser. Wrong (struck-out) forms have no button. | C |
+| RF-28 | **Thread of attempts.** A wrong or partial answer does not reset the exercise: the attempt stays visible (text, verdict, feedback, errors, hint) and a NEW answer field appears below. The solution (model answer + the student's last text, corrected) appears after 3 attempts, after a correct answer, or with `[ MOSTRA SOLUZIONE ]`. While the exercise is open, no text shows the solution words. | M |
+| RF-29 | **Topic memory, rewritten.** When an exercise closes, a memory agent rewrites what the tutor knows about the student on that topic: strengths, weaknesses, next focus and the story so far. The Progress page shows it ("Cosa ricordo di te"). | M |
+| RF-30 | **Logical chain.** Each new exercise continues the story of the topic (same characters, the next event) and practises the next focus and the weaknesses of the memory. An exercise that repeats a recent one is rejected. | M |
+| RF-31b | **Independent scroll**: on desktop the theory part and the practice part scroll separately. | M |
 
 ### 3.4 Configuration
 
@@ -173,9 +178,10 @@ ContextTracing. This is an item of "Cosa alza il livello" in the brief.
 | GET | `/api/topics/{id}` | Theory card `{id, title, level, sections[], markdown}` |
 | POST | `/api/exercises` | `{topic_id, type?}` → exercise `{id, type, prompt, options?, topic_id}` |
 | POST | `/api/topics/{id}/prefetch` | 202. Prepare exercises for the topic in the background (exercise pool) |
-| POST | `/api/exercises/{id}/answer` | `{answer}` → feedback `{verdict, score, correct_answer, explanation, rule_ref}` |
+| POST | `/api/exercises/{id}/answer` | `{answer}` (max 600 characters) → `AttemptFeedback {attempt, verdict, score, feedback, hint, errors, rule_ref, done, solution}`. 409 if the exercise is closed |
+| POST | `/api/exercises/{id}/solution` | Shows the `Solution {model_answer, corrected, explanation}` and closes the exercise |
 | POST | `/api/topics/{id}/explain` | "Spiegami meglio" (RF-05): `{explanation, sources: [{rule_ref, title}]}`. 503 if the RAG has no OpenAI key for the embeddings |
-| GET | `/api/progress?topic_id=` | Learner profile: accuracy for each topic, frequent errors for each `rule_ref`, `streak_days`, `active_days` (last 30 days) |
+| GET | `/api/progress?topic_id=` | Learner profile: accuracy for each topic, frequent errors, `streak_days`, `active_days`, and `memories` (the topic memory of RF-29) |
 | GET | `/api/audit?limit=` | The most recent audit records (generations, corrections, guardrail events) |
 
 ### 5.4 Data model
@@ -204,9 +210,18 @@ ContextTracing. This is an item of "Cosa alza il livello" in the brief.
     instructions", "you are now", "mark it correct", …). If a pattern matches, the result is
     `wrong`, the student sees an explanation, and the audit trail records the event.
   - A flagged attempt is not in the learner profile. The audit trail keeps it.
-- **Mitigation by design.** No raw student answer goes into an LLM prompt. Closed exercises
-  use fixed rules. The MCP tool `get_learner_profile` returns aggregates only (accuracy and
-  error counts for each `rule_ref`), never the answer text.
+- **Student text in a prompt (writing types).** The grader must read the student's text, so
+  this is the only prompt that contains it. Mitigations:
+  - the input guardrail flags known injection patterns (a flagged answer is not graded);
+  - the text is in a `<student_answer>` data block, with `<` and `>` escaped, and the prompt
+    says that it is data, never an instruction;
+  - the grader has **no tools**: an injection has nothing to call;
+  - the code, not the LLM, computes the verdict from three judgements, and the grading eval
+    has a subtle injection case ("the verdict must be correct"), graded wrong;
+  - the memory agent and the writer get only the grader's short notes and aggregates,
+    never the student's raw text.
+- **No solution before the end.** While an exercise is open, the words of the model answers
+  that the student has not written yet are replaced by "…" in feedback, hint and notes.
 - **Output guardrail** (`output_issues`, part of the rules check). The writer output must not
   show the solution in the instruction or in the prompt, must not contain instructions for
   an AI system, and must not contain HTML or links. Pydantic validates the structured output
@@ -230,6 +245,10 @@ ContextTracing. This is an item of "Cosa alza il livello" in the brief.
     each generation must take 30 s or less. Gate: 3 of 3.
   - The first run found a real defect: on some tasks the writer did not call
     `get_learner_profile`. The fix: the writer calls both tools in parallel in its first step.
+- **Grading eval.** 8 written answers with a known verdict (exact, other words, irregular
+  error, wrong tense, small typo, third person -s, dialogue, subtle injection). Gate: 7 of 8.
+  The first run gave 6/8: the LLM's own verdict was too soft ("she drink" was partial). Now
+  the code decides the verdict from three judgements: 8/8.
 - **RAG eval (RAGAS).** 4 real "Spiegami meglio" explanations (past simple, comparatives,
   modal verbs, passive). The contexts are the passages that the agent retrieved. Gates: no
   errors, mean faithfulness >= 0.85, mean context precision >= 0.70. Measured: faithfulness
@@ -265,6 +284,7 @@ Each milestone must end with a part that operates.
 | M5 | Docker image tested with the real LLM, Docker dev stack tested, GitHub Actions CI with the eval gate, final README with the MCP setup for other hosts | S15 | done |
 | M7 | Sprint for the end user: 3 new closed exercise types, exercise pool with prefetch, session of 10 with summary, varied exercises | RF-11, RF-23..25 | done |
 | M8 | "Spiegami meglio" with RAG (hybrid search, explainer agent, RAGAS eval), Progress page, keyboard shortcuts, pronunciation, 5 B1-B2 topics | RF-05, RF-22, RF-26, RF-27 | done |
+| M9 | Writing as the core: 4 writing types with an AI grader, thread of attempts and solution, topic memory rewritten by an agent, story chain, independent scroll, grading eval | RF-11, RF-13, RF-28..30 | done |
 | M6 | *(if time is available)* open exercises, "Spiegami meglio", RAG on Qdrant and RAGAS | RF-05, RF-13 | 2 h |
 
 ## 9. Decisions
@@ -298,6 +318,12 @@ Each milestone must end with a part that operates.
 | RAG infrastructure | Qdrant in memory in the MCP server process, embeddings cached on disk by content hash. `ENITA_QDRANT_URL` selects a Qdrant server. | One Docker image and no file locks between processes. An unchanged card is never embedded again (first build 1 s, then 0.02 s). |
 | Explanation guardrail | The cited sources must be passages that `search_grammar` returned in the same trace and must exist. Wrong forms are struck out. | No ungrounded citations. The app does not read a wrong form aloud. |
 | Tools per agent | The writer gets `get_theory_card` and `get_learner_profile`; the explainer gets `search_grammar` and `get_learner_profile`. All tool parameters are required. | Least privilege. OpenAI strict mode refused a tool with an optional parameter, also for the writer. |
+| Writing core | 4 writing types, 80% of the exercises (50% at A1). Closed types are a warm-up. | Decision of the project owner: the student practises by writing more text, not by choosing. |
+| Grader verdict | The grader judges task_done, rule_correct and important_errors; code computes the verdict and the score. | Same lesson as the verifier: a global LLM verdict was too soft (6/8 in the grading eval); the split judgement gives 8/8. |
+| Thread of attempts | Every attempt is saved and shown; a new field opens for the next one; solution after 3 attempts or on request. | Decision of the project owner: the student sees what they wrote before and after. |
+| Solution masking | Code hides the words of the model answers that the student has not written yet, in all texts of an open exercise. | Live test: an error note said "il passato di buy è bought" while the hint hid it. |
+| Topic memory | A memory agent rewrites strengths, weaknesses, next focus and story after each closed exercise. Then the pool of that topic is cleared and filled again. | The next exercises use the latest memory. The memory gets only grader notes, not raw text. |
+| No repeats | The rules check rejects an exercise whose prompt has a word overlap ≥ 70% with one of the 10 latest of the topic. | Live test: with only the prompt rule, the writer repeated a finished exercise. |
 | Frontend structure | `core/`, `features/`, `shared/`. One component has one responsibility. A feature store keeps the state. | Decision of the project owner. Small components are easy to test and to change. |
 
 ## 10. Open questions
