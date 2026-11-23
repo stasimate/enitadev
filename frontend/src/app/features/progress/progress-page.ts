@@ -5,7 +5,7 @@ import { ProgressStore } from './progress-store';
 @Component({
   selector: 'en-progress-page',
   providers: [ProgressStore],
-  host: { class: 'block flex-1' },
+  host: { class: 'block flex-1 lg:min-h-0 lg:overflow-y-auto' },
   template: `
     <main class="mx-auto flex max-w-3xl flex-col gap-6 p-6">
       @if (store.profile.error()) {
@@ -53,6 +53,44 @@ import { ProgressStore } from './progress-store';
                 >
                   <div class="h-full bg-ok" [style.width.%]="row.accuracy * 100"></div>
                 </div>
+                @if (row.memory; as memory) {
+                  <details class="mt-2 border-t-2 border-ink pt-2">
+                    <summary class="cursor-pointer font-bold uppercase">
+                      [ Cosa ricordo di te ]
+                    </summary>
+                    <div class="mt-2 flex flex-col gap-3">
+                      @if (memory.strengths.length) {
+                        <div>
+                          <p class="text-sm font-bold uppercase text-ok">Punti di forza</p>
+                          <ul class="flex flex-col gap-1 text-ok">
+                            @for (item of memory.strengths; track $index) {
+                              <li>[ OK ] {{ item }}</li>
+                            }
+                          </ul>
+                        </div>
+                      }
+                      @if (memory.weaknesses.length) {
+                        <div>
+                          <p class="text-sm font-bold uppercase text-err">Punti deboli</p>
+                          <ul class="flex flex-col gap-1 text-err">
+                            @for (item of memory.weaknesses; track $index) {
+                              <li>[ DA MIGLIORARE ] {{ item }}</li>
+                            }
+                          </ul>
+                        </div>
+                      }
+                      @if (memory.next_focus) {
+                        <p>
+                          <span class="text-sm font-bold uppercase">Prossimo obiettivo:</span>
+                          {{ memory.next_focus }}
+                        </p>
+                      }
+                      @if (memory.story_so_far) {
+                        <p class="italic">{{ memory.story_so_far }}</p>
+                      }
+                    </div>
+                  </details>
+                }
               </li>
             }
           </ul>

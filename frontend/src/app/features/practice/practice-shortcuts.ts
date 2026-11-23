@@ -52,7 +52,7 @@ export class PracticeShortcuts {
       }
       case 'next':
         if (this.session.canContinue()) this.session.next();
-        else if (this.session.finished() && this.practice.status() === 'feedback') {
+        else if (this.session.finished() && this.practice.status() === 'done') {
           this.session.showSummary();
         }
         break;

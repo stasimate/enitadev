@@ -2,11 +2,12 @@ import { HttpClient, httpResource } from '@angular/common/http';
 import { inject, Service } from '@angular/core';
 import { Observable } from 'rxjs';
 import {
+  AttemptFeedback,
   Exercise,
   ExerciseType,
   Explanation,
-  Feedback,
   LearnerProfile,
+  Solution,
   TopicCard,
   TopicSummary,
 } from './models';
@@ -35,9 +36,16 @@ export class Api {
     return this.http.post<Exercise>('/api/exercises', { topic_id: topicId, type });
   }
 
-  /** Send the answer of the student and get the feedback. */
-  answerExercise(id: string, answer: string): Observable<Feedback> {
-    return this.http.post<Feedback>(`/api/exercises/${encodeURIComponent(id)}/answer`, { answer });
+  /** Send one answer of the student and get the feedback of this attempt. */
+  answerExercise(id: string, answer: string): Observable<AttemptFeedback> {
+    return this.http.post<AttemptFeedback>(`/api/exercises/${encodeURIComponent(id)}/answer`, {
+      answer,
+    });
+  }
+
+  /** Close the exercise and get the solution. */
+  solution(id: string): Observable<Solution> {
+    return this.http.post<Solution>(`/api/exercises/${encodeURIComponent(id)}/solution`, {});
   }
 
   /** Ask the backend to prepare exercises in advance. Fire and forget (202). */

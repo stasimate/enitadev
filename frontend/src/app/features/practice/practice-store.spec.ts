@@ -1,7 +1,7 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
-import { Exercise, Feedback } from '../../core/models';
+import { AttemptFeedback, Exercise } from '../../core/models';
 import { TheoryStore } from '../theory/theory-store';
 import { PracticeStore } from './practice-store';
 
@@ -12,13 +12,29 @@ const EXERCISE: Exercise = {
   instruction: 'Completa',
   prompt: 'I ___ yesterday.',
   options: [],
+  context: '',
 };
-const FEEDBACK: Feedback = {
+const SOLUTION = { model_answer: 'worked', corrected: null, explanation: 'Usa il past simple.' };
+const FEEDBACK: AttemptFeedback = {
+  attempt: 1,
   verdict: 'wrong',
   score: 0,
-  correct_answer: 'worked',
-  explanation: 'Usa il past simple.',
+  feedback: 'Manca il past simple.',
+  hint: 'Pensa a ieri.',
+  errors: ['verbo al presente'],
   rule_ref: 'past-simple#esempi',
+  done: false,
+  solution: null,
+};
+const DONE: AttemptFeedback = {
+  ...FEEDBACK,
+  attempt: 2,
+  verdict: 'correct',
+  score: 1,
+  hint: null,
+  errors: [],
+  done: true,
+  solution: SOLUTION,
 };
 
 async function settle(): Promise<void> {
@@ -44,30 +60,77 @@ describe('PracticeStore', () => {
     http.match(() => true);
   });
 
-  it('creates an exercise, checks the answer and highlights the rule', () => {
+  function open(): void {
+    store.newExercise('past-simple');
+    http.expectOne('/api/exercises').flush(EXERCISE);
+  }
+
+  it('creates an exercise and keeps it open after a feedback that is not done', () => {
     store.newExercise('past-simple');
     expect(store.status()).toBe('loading');
     const create = http.expectOne('/api/exercises');
     expect(create.request.body).toEqual({ topic_id: 'past-simple', type: undefined });
     create.flush(EXERCISE);
-    expect(store.exercise()).toEqual(EXERCISE);
     expect(store.status()).toBe('answering');
 
-    store.submit('worked');
+    store.submit('work');
     expect(store.status()).toBe('checking');
     const answer = http.expectOne('/api/exercises/ex1/answer');
-    expect(answer.request.body).toEqual({ answer: 'worked' });
+    expect(answer.request.body).toEqual({ answer: 'work' });
     answer.flush(FEEDBACK);
-    expect(store.feedback()).toEqual(FEEDBACK);
-    expect(store.status()).toBe('feedback');
+    expect(store.attempts()).toEqual([{ answer: 'work', feedback: FEEDBACK }]);
+    expect(store.status()).toBe('answering');
+    expect(store.canShowSolution()).toBe(true);
 
     store.showRule();
     expect(theory.highlighted()).toBe('esempi');
   });
 
+  it('keeps all attempts and closes the exercise on a done feedback', () => {
+    open();
+    store.submit('work');
+    http.expectOne('/api/exercises/ex1/answer').flush(FEEDBACK);
+    store.submit('worked');
+    http.expectOne('/api/exercises/ex1/answer').flush(DONE);
+    expect(store.attempts().map((a) => a.answer)).toEqual(['work', 'worked']);
+    expect(store.status()).toBe('done');
+    expect(store.solution()).toEqual(SOLUTION);
+    expect(store.outcome()).toEqual({
+      attempts: 2,
+      verdict: 'correct',
+      ruleRef: 'past-simple#esempi',
+    });
+    // A closed exercise accepts no answer.
+    store.submit('again');
+    http.expectNone('/api/exercises/ex1/answer');
+  });
+
+  it('closes the exercise and stores the solution from the solution endpoint', () => {
+    open();
+    store.submit('work');
+    http.expectOne('/api/exercises/ex1/answer').flush(FEEDBACK);
+    store.showSolution();
+    const req = http.expectOne('/api/exercises/ex1/solution');
+    expect(req.request.method).toBe('POST');
+    req.flush(SOLUTION);
+    expect(store.solution()).toEqual(SOLUTION);
+    expect(store.status()).toBe('done');
+    expect(store.outcome().verdict).toBe('wrong');
+  });
+
+  it('closes the exercise on a 409', () => {
+    open();
+    store.submit('x');
+    http
+      .expectOne('/api/exercises/ex1/answer')
+      .flush({ detail: 'closed' }, { status: 409, statusText: 'Conflict' });
+    expect(store.status()).toBe('done');
+    expect(store.error()).toBe('Questo esercizio è già chiuso.');
+    expect(store.retryable()).toBe(false);
+  });
+
   it('does not highlight a rule of another topic', () => {
-    store.feedback.set({ ...FEEDBACK, rule_ref: 'other#regola' });
-    store.showRule();
+    store.showRule('other#regola');
     expect(theory.highlighted()).toBeNull();
   });
 

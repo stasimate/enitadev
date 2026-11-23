@@ -6,7 +6,7 @@ import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
   selector: 'en-root',
   imports: [RouterOutlet, RouterLink, RouterLinkActive],
   template: `
-    <div class="flex min-h-dvh flex-col">
+    <div class="flex min-h-dvh flex-col lg:h-dvh">
       <header
         class="flex flex-wrap items-center justify-between gap-3 border-b-2 border-ink px-4 py-3"
       >

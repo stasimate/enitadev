@@ -14,7 +14,11 @@ export class ProgressStore {
   readonly profile = this.api.progress();
 
   readonly rows = computed(() =>
-    buildRows(this.theory.topics.value(), this.profile.value()?.topics ?? []),
+    buildRows(
+      this.theory.topics.value(),
+      this.profile.value()?.topics ?? [],
+      this.profile.value()?.memories ?? {},
+    ),
   );
   readonly strip = computed(() => buildStrip(this.profile.value()?.active_days ?? [], new Date()));
   readonly errors = computed(() =>

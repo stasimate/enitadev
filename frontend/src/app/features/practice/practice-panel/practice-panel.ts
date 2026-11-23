@@ -7,12 +7,13 @@ import { SessionStore } from '../../session/session-store';
 import { SessionSummary } from '../../session/session-summary/session-summary';
 import { PracticeShortcuts } from '../practice-shortcuts';
 import { PracticeStore } from '../practice-store';
+import { SolutionView } from '../solution-view/solution-view';
 
-/** The practice part: it arranges the exercise, the answer form and the feedback. */
+/** The practice part: it arranges the exercise, the thread of attempts and the solution. */
 @Component({
   selector: 'en-practice-panel',
   host: { '(document:keydown)': 'shortcuts.handle($event)' },
-  imports: [ExerciseView, AnswerForm, FeedbackView, SessionSummary],
+  imports: [ExerciseView, AnswerForm, FeedbackView, SolutionView, SessionSummary],
   template: `
     <div class="flex flex-col gap-4 border-2 border-ink p-4 shadow-brutal">
       @if (!theory.selectedId()) {
@@ -22,7 +23,7 @@ import { PracticeStore } from '../practice-store';
         <en-session-summary
           [correct]="session.correct()"
           [total]="session.size"
-          [wrong]="session.wrong()"
+          [results]="session.results()"
           (showRule)="onShowRule($event)"
           (restart)="session.start()"
           (closed)="session.close()"
@@ -71,21 +72,42 @@ import { PracticeStore } from '../practice-store';
 
         @if (practice.exercise(); as exercise) {
           <en-exercise-view [exercise]="exercise" />
-          @if (practice.status() !== 'feedback') {
-            <en-answer-form
-              [exercise]="exercise"
-              [disabled]="practice.status() === 'checking'"
-              (answered)="practice.submit($event)"
-            />
+          @for (attempt of practice.attempts(); track $index) {
+            <en-feedback-view [attempt]="attempt" />
+          }
+          <!-- The slot changes with each attempt, so each attempt gets a new empty input. -->
+          @for (slot of openSlots(); track slot) {
+            <div class="flex flex-col gap-2">
+              <h3 class="text-sm font-bold uppercase">// Tentativo {{ slot + 1 }}</h3>
+              <en-answer-form
+                [exercise]="exercise"
+                [disabled]="practice.status() === 'checking'"
+                (answered)="practice.submit($event)"
+              />
+            </div>
           }
           @if (practice.status() === 'checking') {
             <p aria-live="polite">Il Tutor sta correggendo<span class="cursor-blink">_</span></p>
           }
+          @if (practice.canShowSolution()) {
+            <button
+              type="button"
+              class="self-start border-2 border-ink px-4 py-2 font-bold uppercase shadow-brutal-sm"
+              (click)="practice.showSolution()"
+            >
+              [ Mostra soluzione ]
+            </button>
+          }
+          @if (practice.solution(); as solution) {
+            <en-solution-view
+              [solution]="solution"
+              [ruleRef]="practice.outcome().ruleRef"
+              (showRule)="onShowRule()"
+            />
+          }
         }
 
-        <en-feedback-view [feedback]="practice.feedback()" (showRule)="onShowRule()" />
-
-        @if (session.finished() && practice.status() === 'feedback') {
+        @if (session.finished() && practice.status() === 'done') {
           <button
             type="button"
             class="self-start border-2 border-ink bg-accent px-4 py-2 font-bold uppercase shadow-brutal-sm"
@@ -135,6 +157,11 @@ export class PracticePanel {
 
   /** Sent after the theory section is highlighted. The shell then shows it. */
   readonly ruleShown = output<void>();
+
+  /** One slot while the exercise is open, none when it is closed. The slot is the attempt index. */
+  protected readonly openSlots = computed(() =>
+    ['answering', 'checking'].includes(this.practice.status()) ? [this.practice.attempts().length] : [],
+  );
 
   protected readonly canStart = computed(
     () => !!this.theory.selectedId() && this.practice.status() !== 'loading',

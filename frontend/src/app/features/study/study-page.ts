@@ -12,7 +12,7 @@ type Pane = 'theory' | 'practice';
 @Component({
   selector: 'en-study-page',
   imports: [TopicSelect, TheoryCard, PracticePanel, ExplainPanel],
-  host: { class: 'flex flex-1 flex-col' },
+  host: { class: 'flex flex-1 flex-col lg:min-h-0' },
   templateUrl: './study-page.html',
 })
 export class StudyPage {

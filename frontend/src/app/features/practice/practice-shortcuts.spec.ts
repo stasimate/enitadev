@@ -73,7 +73,7 @@ describe('PracticeShortcuts', () => {
     expect(session.next).toHaveBeenCalled();
     session.canContinue.set(false);
     session.finished.set(true);
-    practice.status.set('feedback');
+    practice.status.set('done');
     shortcuts.handle(press('p'));
     expect(session.showSummary).toHaveBeenCalled();
   });

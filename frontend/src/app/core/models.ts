@@ -22,7 +22,25 @@ export interface TopicCard extends TopicSummary {
 }
 
 export type ExerciseType =
-  'fill_blank' | 'multiple_choice' | 'reorder' | 'transform' | 'find_error';
+  | 'fill_blank'
+  | 'multiple_choice'
+  | 'reorder'
+  | 'transform'
+  | 'find_error'
+  | 'translate'
+  | 'guided'
+  | 'rewrite'
+  | 'dialogue';
+
+/** The types where the student writes free text. */
+export const WRITING_TYPES: readonly ExerciseType[] = ['translate', 'guided', 'rewrite', 'dialogue'];
+
+/** The maximum length of a free text answer. */
+export const WRITING_MAX_LENGTH = 600;
+
+export function isWriting(type: ExerciseType): boolean {
+  return WRITING_TYPES.includes(type);
+}
 
 export interface Exercise {
   id: string;
@@ -33,6 +51,8 @@ export interface Exercise {
    * Depends on the type. fill_blank: English sentence with `___` for the answer.
    * transform: English source sentence. find_error: English sentence with one wrong word.
    * reorder: Italian translation of the target sentence (a hint).
+   * translate: Italian text to translate. guided: a writing task in Italian.
+   * rewrite: an English text to rewrite. dialogue: a line of a character.
    */
   prompt: string;
   /**
@@ -40,17 +60,41 @@ export interface Exercise {
    * find_error: the words of the sentence in order. Empty for the other types.
    */
   options: string[];
+  /** One Italian sentence about the story of the topic. It can be empty. */
+  context: string;
 }
 
 export type Verdict = 'correct' | 'partial' | 'wrong';
 
-export interface Feedback {
+export interface Solution {
+  model_answer: string;
+  /** The answer of the student, corrected. Null when there is nothing to correct. */
+  corrected: string | null;
+  explanation: string;
+}
+
+export interface AttemptFeedback {
+  /** 1, 2, 3... */
+  attempt: number;
   verdict: Verdict;
   score: number;
-  correct_answer: string;
-  explanation: string;
+  /** Italian text, specific to this attempt. It can contain markdown. */
+  feedback: string;
+  /** Italian hint without the solution. Null when correct or done. */
+  hint: string | null;
+  errors: string[];
   /** Format: `<topic_id>#<section-slug>`. */
   rule_ref: string;
+  /** True when correct, or after the third attempt. */
+  done: boolean;
+  /** Present when done. */
+  solution: Solution | null;
+}
+
+/** One answer of the student with the feedback of the Tutor. */
+export interface Attempt {
+  answer: string;
+  feedback: AttemptFeedback;
 }
 
 export interface ExplainSource {
@@ -72,6 +116,14 @@ export interface TopicStats {
   accuracy: number;
 }
 
+export interface TopicMemory {
+  strengths: string[];
+  weaknesses: string[];
+  next_focus: string;
+  story_so_far: string;
+  updated_at: string;
+}
+
 export interface LearnerProfile {
   topics: TopicStats[];
   /** The number of wrong answers for each `rule_ref`. */
@@ -79,4 +131,6 @@ export interface LearnerProfile {
   streak_days: number;
   /** ISO dates (YYYY-MM-DD) of the last 30 days with at least one attempt. */
   active_days: string[];
+  /** What the Tutor remembers about the student, for each topic id. */
+  memories: Record<string, TopicMemory>;
 }

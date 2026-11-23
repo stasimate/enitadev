@@ -1,21 +1,20 @@
 import { computed, effect, inject, Service, signal, untracked } from '@angular/core';
-import { Exercise, Feedback } from '../../core/models';
-import { PracticeStore } from '../practice/practice-store';
+import { Exercise } from '../../core/models';
+import { Outcome, PracticeStore } from '../practice/practice-store';
 import { TheoryStore } from '../theory/theory-store';
 
 export const SESSION_SIZE = 10;
 
-export interface SessionResult {
+export interface SessionResult extends Outcome {
   exercise: Exercise;
-  feedback: Feedback;
 }
 
-/** State of a session of 10 exercises. It counts the feedback of the practice store. */
+/** State of a session of 10 exercises. It counts each exercise that the practice store closes. */
 @Service()
 export class SessionStore {
   private readonly practice = inject(PracticeStore);
   private readonly theory = inject(TheoryStore);
-  private lastFeedback: Feedback | null = null;
+  private lastClosed: Exercise | null = null;
 
   readonly size = SESSION_SIZE;
   readonly active = signal(false);
@@ -27,18 +26,18 @@ export class SessionStore {
   /** The summary shows after the student read the last feedback. */
   readonly summaryOpen = computed(() => this.finished() && this.summaryRequested());
   readonly correct = computed(
-    () => this.results().filter((r) => r.feedback.verdict === 'correct').length,
+    () => this.results().filter((r) => r.verdict === 'correct').length,
   );
-  /** Only a `correct` verdict counts. `partial` and `wrong` do not. */
-  readonly wrong = computed(() => this.results().filter((r) => r.feedback.verdict !== 'correct'));
+  /** The final verdict counts. Only `correct` is a success, in any attempt. */
+  readonly wrong = computed(() => this.results().filter((r) => r.verdict !== 'correct'));
   /** The number of the exercise on screen, from 1 to size. */
   readonly position = computed(() => {
     const done = this.results().length;
-    return Math.min(this.practice.status() === 'feedback' ? done : done + 1, this.size);
+    return Math.min(this.practice.status() === 'done' ? done : done + 1, this.size);
   });
   /** True when the student can ask for the next exercise. */
   readonly canContinue = computed(
-    () => this.active() && !this.finished() && this.practice.status() === 'feedback',
+    () => this.active() && !this.finished() && this.practice.status() === 'done',
   );
 
   constructor() {
@@ -47,10 +46,11 @@ export class SessionStore {
       this.theory.selectedId();
       untracked(() => this.close());
     });
-    // Each new feedback is one exercise. A retry makes no feedback, so it is not counted.
+    // Each closed exercise is one result. An open exercise or a retry is not counted.
     effect(() => {
-      const feedback = this.practice.feedback();
-      untracked(() => this.record(feedback));
+      const closed = this.practice.status() === 'done';
+      const outcome = this.practice.outcome();
+      untracked(() => this.record(closed, outcome));
     });
   }
 
@@ -78,11 +78,11 @@ export class SessionStore {
     this.results.set([]);
   }
 
-  private record(feedback: Feedback | null): void {
+  private record(closed: boolean, outcome: Outcome): void {
     const exercise = this.practice.exercise();
-    if (!feedback || feedback === this.lastFeedback) return;
-    this.lastFeedback = feedback;
-    if (!this.active() || !exercise || this.finished()) return;
-    this.results.update((r) => [...r, { exercise, feedback }]);
+    if (!closed || !exercise || exercise === this.lastClosed) return;
+    this.lastClosed = exercise;
+    if (!this.active() || this.finished()) return;
+    this.results.update((r) => [...r, { exercise, ...outcome }]);
   }
 }

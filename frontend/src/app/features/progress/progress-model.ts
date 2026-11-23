@@ -1,4 +1,4 @@
-import { LEVELS, Level, TopicStats, TopicSummary } from '../../core/models';
+import { LEVELS, Level, TopicMemory, TopicStats, TopicSummary } from '../../core/models';
 
 export interface TopicRow {
   id: string;
@@ -8,6 +8,8 @@ export interface TopicRow {
   correct: number;
   /** From 0 to 1. It is 0 when there is no attempt. */
   accuracy: number;
+  /** What the Tutor remembers about this topic. Null when there is nothing. */
+  memory: TopicMemory | null;
 }
 
 export interface DayCell {
@@ -25,7 +27,11 @@ export interface ErrorRow {
 }
 
 /** One row for each topic, also for the topics without attempts. Sorted by level, then title. */
-export function buildRows(topics: TopicSummary[], stats: TopicStats[]): TopicRow[] {
+export function buildRows(
+  topics: TopicSummary[],
+  stats: TopicStats[],
+  memories: Record<string, TopicMemory> = {},
+): TopicRow[] {
   const byTopic = new Map(stats.map((s) => [s.topic_id, s]));
   return topics
     .map((topic) => {
@@ -39,6 +45,7 @@ export function buildRows(topics: TopicSummary[], stats: TopicStats[]): TopicRow
         attempts,
         correct,
         accuracy: attempts ? correct / attempts : 0,
+        memory: memories[topic.id] ?? null,
       };
     })
     .sort(

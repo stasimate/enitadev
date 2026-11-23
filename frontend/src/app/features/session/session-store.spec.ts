@@ -1,7 +1,7 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
-import { Exercise, Feedback, Verdict } from '../../core/models';
+import { AttemptFeedback, Exercise, Verdict } from '../../core/models';
 import { PracticeStore } from '../practice/practice-store';
 import { TheoryStore } from '../theory/theory-store';
 import { SessionStore } from './session-store';
@@ -13,13 +13,22 @@ const exercise = (n: number): Exercise => ({
   instruction: 'i',
   prompt: 'p',
   options: [],
+  context: '',
 });
-const feedback = (verdict: Verdict, rule = 'past-simple#esempi'): Feedback => ({
+const feedback = (
+  verdict: Verdict,
+  rule = 'past-simple#esempi',
+  done = true,
+): AttemptFeedback => ({
+  attempt: 1,
   verdict,
   score: 0,
-  correct_answer: 'x',
-  explanation: 'e',
+  feedback: 'f',
+  hint: null,
+  errors: [],
   rule_ref: rule,
+  done,
+  solution: done ? { model_answer: 'x', corrected: null, explanation: 'e' } : null,
 });
 
 describe('SessionStore', () => {
@@ -42,7 +51,7 @@ describe('SessionStore', () => {
   });
 
   /** Create one exercise and answer it. */
-  function play(n: number, fb: Feedback): void {
+  function play(n: number, fb: AttemptFeedback): void {
     if (n === 1) session.start();
     else session.next();
     http.expectOne('/api/exercises').flush(exercise(n));
@@ -61,7 +70,7 @@ describe('SessionStore', () => {
       expect(session.finished()).toBe(n === 10);
     }
     expect(session.correct()).toBe(7);
-    expect(session.wrong().map((r) => r.feedback.rule_ref)).toEqual([
+    expect(session.wrong().map((r) => r.ruleRef)).toEqual([
       'past-simple#r8',
       'past-simple#r9',
       'past-simple#r10',
@@ -70,6 +79,40 @@ describe('SessionStore', () => {
     expect(session.summaryOpen()).toBe(false);
     session.showSummary();
     expect(session.summaryOpen()).toBe(true);
+  });
+
+  it('counts the final verdict and the attempts of each exercise', () => {
+    session.start();
+    http.expectOne('/api/exercises').flush(exercise(1));
+    practice.submit('a');
+    http.expectOne('/api/exercises/ex1/answer').flush(feedback('wrong', 'past-simple#r1', false));
+    TestBed.tick();
+    // An open exercise is not a result and cannot continue.
+    expect(session.results().length).toBe(0);
+    expect(session.canContinue()).toBe(false);
+    practice.submit('b');
+    http
+      .expectOne('/api/exercises/ex1/answer')
+      .flush({ ...feedback('correct'), attempt: 2 });
+    TestBed.tick();
+    expect(session.results().map((r) => [r.attempts, r.verdict])).toEqual([[2, 'correct']]);
+    expect(session.correct()).toBe(1);
+    expect(session.canContinue()).toBe(true);
+
+    session.next();
+    http.expectOne('/api/exercises').flush(exercise(2));
+    practice.submit('c');
+    http.expectOne('/api/exercises/ex2/answer').flush(feedback('partial', 'past-simple#r2', false));
+    practice.showSolution();
+    http
+      .expectOne('/api/exercises/ex2/solution')
+      .flush({ model_answer: 'x', corrected: null, explanation: 'e' });
+    TestBed.tick();
+    expect(session.results().map((r) => [r.attempts, r.verdict])).toEqual([
+      [2, 'correct'],
+      [1, 'partial'],
+    ]);
+    expect(session.wrong().map((r) => r.ruleRef)).toEqual(['past-simple#r2']);
   });
 
   it('does not count a retry after a temporary error', () => {

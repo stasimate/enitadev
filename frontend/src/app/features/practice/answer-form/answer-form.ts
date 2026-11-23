@@ -1,14 +1,17 @@
-import { Component, input, output, signal } from '@angular/core';
-import { Exercise } from '../../../core/models';
+import { Component, computed, input, output, signal } from '@angular/core';
+import { Exercise, isWriting } from '../../../core/models';
 import { ReorderInput } from '../reorder-input/reorder-input';
 import { WordPicker } from '../word-picker/word-picker';
+import { WritingInput } from '../writing-input/writing-input';
 
-/** Picks the answer input by exercise type. Text input, option buttons, chunks or words. */
+/** Picks the answer input by exercise type. Text area, text input, option buttons, chunks or words. */
 @Component({
   selector: 'en-answer-form',
-  imports: [ReorderInput, WordPicker],
+  imports: [ReorderInput, WordPicker, WritingInput],
   template: `
-    @if (exercise().type === 'reorder') {
+    @if (writing()) {
+      <en-writing-input [disabled]="disabled()" (answered)="answered.emit($event)" />
+    } @else if (exercise().type === 'reorder') {
       <en-reorder-input
         [chunks]="exercise().options"
         [disabled]="disabled()"
@@ -65,6 +68,7 @@ export class AnswerForm {
   readonly answered = output<string>();
 
   protected readonly text = signal('');
+  protected readonly writing = computed(() => isWriting(this.exercise().type));
 
   protected submit(event: Event): void {
     event.preventDefault();

@@ -9,6 +9,7 @@ const BASE: Exercise = {
   instruction: 'i',
   prompt: 'I ___ home.',
   options: [],
+  context: '',
 };
 
 async function create(exercise: Exercise, disabled = false) {
@@ -50,6 +51,12 @@ describe('AnswerForm', () => {
     expect(buttons.length).toBe(3);
     buttons[1].click();
     expect(answers).toEqual(['went']);
+  });
+
+  it('uses a text area for a writing type', async () => {
+    const { el } = await create({ ...BASE, type: 'translate', prompt: 'Vado a casa.' });
+    expect(el.querySelector('textarea')).toBeTruthy();
+    expect(el.querySelector('input')).toBeNull();
   });
 
   it('disables the controls while checking', async () => {

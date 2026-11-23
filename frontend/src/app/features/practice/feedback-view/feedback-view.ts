@@ -1,5 +1,6 @@
-import { Component, computed, input, output } from '@angular/core';
-import { Feedback, Verdict } from '../../../core/models';
+import { Component, computed, input } from '@angular/core';
+import { Attempt, Verdict } from '../../../core/models';
+import { MarkdownPipe } from '../../../shared/pipes/markdown-pipe';
 
 const LABELS: Record<Verdict, string> = {
   correct: 'CORRETTO',
@@ -7,46 +8,44 @@ const LABELS: Record<Verdict, string> = {
   wrong: 'SBAGLIATO',
 };
 
-/** Shows the verdict, the correct answer and the explanation. It can ask for the rule. */
+/** Shows one attempt of the thread: the answer, the verdict, the feedback, the errors and the hint. */
 @Component({
   selector: 'en-feedback-view',
+  imports: [MarkdownPipe],
   template: `
-    <div aria-live="polite" class="flex flex-col gap-3">
-      @if (feedback(); as fb) {
-        <p>
-          <span
-            class="inline-block border-2 px-2 py-1 font-bold"
-            [class.border-ok]="fb.verdict === 'correct'"
-            [class.text-ok]="fb.verdict === 'correct'"
-            [class.border-err]="fb.verdict === 'wrong'"
-            [class.text-err]="fb.verdict === 'wrong'"
-            [class.border-accent]="fb.verdict === 'partial'"
-            [class.text-ink]="fb.verdict === 'partial'"
-            >{{ label() }}</span
-          >
-        </p>
-        <p>
-          <span class="text-sm font-bold uppercase">Risposta corretta:</span>
-          {{ fb.correct_answer }}
-        </p>
-        <p>{{ fb.explanation }}</p>
-        <button
-          type="button"
-          class="self-start border-2 border-ink px-4 py-2 font-bold uppercase shadow-brutal-sm"
-          (click)="showRule.emit()"
+    <article class="flex flex-col gap-3 border-2 border-ink p-4" [attr.aria-label]="title()">
+      <div class="flex flex-wrap items-center justify-between gap-2">
+        <h3 class="text-sm font-bold uppercase">// {{ title() }}</h3>
+        <span
+          class="inline-block border-2 px-2 py-1 font-bold"
+          [class.border-ok]="verdict() === 'correct'"
+          [class.text-ok]="verdict() === 'correct'"
+          [class.border-err]="verdict() === 'wrong'"
+          [class.text-err]="verdict() === 'wrong'"
+          [class.border-accent]="verdict() === 'partial'"
+          [class.text-ink]="verdict() === 'partial'"
+          >{{ label() }}</span
         >
-          [ Vedi la regola ]
-        </button>
+      </div>
+      <p class="whitespace-pre-wrap border-l-4 border-ink pl-3">{{ attempt().answer }}</p>
+      <div class="md" [innerHTML]="attempt().feedback.feedback | markdown"></div>
+      @if (attempt().feedback.errors.length) {
+        <ul class="flex flex-col gap-1 text-err" aria-label="Errori">
+          @for (error of attempt().feedback.errors; track $index) {
+            <li>[ ERRORE ] {{ error }}</li>
+          }
+        </ul>
       }
-    </div>
+      @if (attempt().feedback.hint; as hint) {
+        <p><span class="text-sm font-bold uppercase">// Suggerimento</span> {{ hint }}</p>
+      }
+    </article>
   `,
 })
 export class FeedbackView {
-  readonly feedback = input<Feedback | null>(null);
-  readonly showRule = output<void>();
+  readonly attempt = input.required<Attempt>();
 
-  protected readonly label = computed(() => {
-    const fb = this.feedback();
-    return fb ? LABELS[fb.verdict] : '';
-  });
+  protected readonly verdict = computed(() => this.attempt().feedback.verdict);
+  protected readonly label = computed(() => LABELS[this.verdict()]);
+  protected readonly title = computed(() => `Tentativo ${this.attempt().feedback.attempt}`);
 }
