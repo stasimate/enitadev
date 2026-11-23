@@ -68,6 +68,17 @@ Before you say that a task is complete, run the tests and the build for the part
 changed. If the part does not operate, the task is not complete. (The brief says: "il
 progetto si considera completato solo se gira".)
 
+### Test rules
+
+Write **only the tests that are strictly necessary**. A test is necessary when it protects:
+
+- logic that decides a result (answer check, rule checks, pipeline decision and retry),
+- a contract between parts (API responses, the MCP tool, the store state),
+- a security rule (the solution is never sent to the frontend, guardrails).
+
+Do not write tests that only show that a component renders or that a class exists.
+Do not write a test for code that the framework already tests.
+
 ## Documentation rules
 
 - Write all documentation in **English** and obey **ASD-STE100** (Simplified Technical
@@ -101,8 +112,12 @@ progetto si considera completato solo se gira".)
   - If you are not sure about a signature, **read the installed source** in
     `backend/.venv/lib/python3.12/site-packages/datapizza/`. Do not guess. The course lessons
     are the reference for usage patterns.
-- MCP server: use the official `mcp` SDK (v2.x). Each tool has a typed signature, a
-  docstring and Pydantic input and output.
+- MCP server: use the official `mcp` SDK **1.x** (`mcp.server.fastmcp.FastMCP`). Each tool
+  has a typed signature and a docstring. Do not upgrade to `mcp` 2.x: the datapizza
+  `MCPClient` (datapizza-ai-core 0.1.3) does not operate with it.
+- Exercise generation is multi-agent (`enita/agent/pipeline.py`): a DagPipeline with
+  writer → (rules check ∥ verifier) → decision. The writer gets the theory only through the
+  MCP tool `get_theory_card`. The retry loop is outside the DAG.
 - **Do not hardcode the LLM provider.** Always use `enita.agent.clients.get_client()`. This
   function reads `ENITA_PROVIDER` and `ENITA_MODEL` (RF-30).
 - **Check closed exercises (fill in the blank, multiple choice) with fixed rules.**
@@ -176,8 +191,11 @@ by default, Signal Forms, native control flow, `inject()`, WCAG AA). Also obey t
 ## Workflow
 
 - Work in small increments that operate. Follow the milestones in the specification (§8).
-- Commit messages: imperative mood, with the area as a prefix: `backend: …`, `frontend: …`,
-  `content: …`, `docs: …`, `evals: …`, `infra: …`.
+- Commit messages: use **Conventional Commits** (`type(scope): description`, imperative
+  mood). Types: `feat`, `fix`, `docs`, `test`, `refactor`, `chore`, `build`, `ci`.
+  Scopes: `backend`, `frontend`, `content`, `evals`, `infra`. Example:
+  `feat(backend): add the exercise verifier agent`.
+- Do not add a `Co-Authored-By` line or other AI attribution to commits.
 - When you add or change an endpoint, update §5.3 of the specification and `frontend/src/app/core/models.ts`.
 - When you make an architecture decision, add a row to §9 "Decisions" of the specification.
 - Ask the project owner before you add an external service, change the architecture (for

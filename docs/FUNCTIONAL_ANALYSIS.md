@@ -88,7 +88,7 @@ Priority: **M** = must (minimum for delivery), **S** = should, **C** = could.
 | ID | Requirement | Brief item |
 |---|---|---|
 | RNF-01 | The agent uses `datapizza.agents.Agent`, a client for more than one provider, tool calling and permanent memory (SQLite, plus `datapizza.memory.Memory` for the session). | LLM and agent core |
-| RNF-02 | The architecture is **one agent, with tools that an MCP server supplies**. Refer to §5. | Orchestration |
+| RNF-02 | The exercise generation is **multi-agent** (writer and verifier in a DagPipeline). An MCP server supplies the tools. Refer to §5.1. | Orchestration |
 | RNF-03 | There is a minimum of one **guardrail**. It validates the input (the student answer) and the output (the AI correction) of the tool `check_answer`. | Security |
 | RNF-04 | `datapizza.tracing.ContextTracing` records an **audit trail** for each exercise and each correction. | Governance |
 | RNF-05 | An **eval** gives a pass or fail result: 8 correction and trajectory tasks. The pass limit is 7 of 8. | Reliability |
@@ -100,16 +100,34 @@ Priority: **M** = must (minimum for delivery), **S** = should, **C** = could.
 
 ## 5. Architecture
 
-### 5.1 Decision: one agent and an MCP server
+### 5.1 Decision: multi-agent generation (writer + verifier) and an MCP server
 
-> **Reason:** The flow is one teaching conversation (make an exercise, check it, explain it).
-> The flow has few tools and must have low latency. Thus, one tutor agent is sufficient.
-> An **MCP server** supplies the tools. Other hosts (Claude Desktop, Cursor) can then also
-> use the content and the progress data.
+> **Reason:** The largest risk of Enita is a wrong exercise (two correct answers, wrong
+> English, wrong level). A second agent that verifies each draft stops this risk before the
+> student sees the exercise. The correction of closed exercises uses fixed rules, so it
+> needs no agent. An **MCP server** supplies the tools. Other hosts (Claude Desktop, Cursor)
+> can then also use the content.
 
-A multi-agent version (DagPipeline: one agent makes the exercise, one agent verifies it) is
-possible later. Compare it with the one-agent baseline (cost and steps). This is an item of
-"Cosa alza il livello" in the brief.
+The generation is a `DagPipeline`:
+
+```
+writer ──▶ rules check (fixed rules) ──┐
+   │                                   ├──▶ decision ──▶ approved: save the exercise
+   └─────▶ verifier (LLM) ─────────────┘              └▶ rejected: retry (max 2 attempts)
+```
+
+- **Writer**: a datapizza `Agent` with the MCP tool `get_theory_card` and structured output
+  `ExerciseDraft`. It must call the tool first (`tool_choice="required_first"`).
+- **Rules check**: free checks of the format (one blank, 3-4 different options, the answer
+  is an option, the correct type).
+- **Verifier**: a datapizza `Agent` without tools and with structured output `Verification`.
+  It receives the card and the draft.
+- **Decision**: it approves only if the rules check has no issues and the verifier approves.
+  A DAG has no cycles. Thus, the retry loop is outside the pipeline. On a retry, the writer
+  receives the issues.
+
+Compare this pipeline with a one-agent baseline (cost, steps, rejected drafts) through
+ContextTracing. This is an item of "Cosa alza il livello" in the brief.
 
 ### 5.2 Components
 
@@ -124,7 +142,7 @@ possible later. Compare it with the one-agent baseline (cost and steps). This is
                            │ REST/JSON
 ┌──────────────────────────▼──── Backend (FastAPI, Python 3.12) ─────┐
 │  api/        REST endpoints                                        │
-│  agent/      Tutor = datapizza Agent + client factory (4 providers)│
+│  agent/      writer + verifier (DagPipeline), client factory (4 p.)│
 │  guardrails/ input and output validation                           │
 │  tracing     ContextTracing → audit log                            │
 │  storage/    SQLite: profile, attempts                             │
@@ -200,7 +218,7 @@ Each milestone must end with a part that operates.
 |---|---|---|---|
 | M0 | Repository, analysis, AGENTS.md, frontend and backend scaffold | — | done |
 | M1 | Theory cards (6 topics, A1 to B1), topics API, split-screen UI with the theory, Docker image and Docker dev stack | RF-01..03 | done |
-| M2 | Tutor agent for more than one provider, MCP server with `get_theory_card`, generation and closed exercises | RF-10..12, RF-30, S12 | 1.5 h |
+| M2 | Writer + verifier agents (DagPipeline) for more than one provider, MCP server with `get_theory_card`, closed exercises with fixed-rule check, practice UI | RF-10..12, RF-14, RF-30, S12 | done (live LLM test pending) |
 | M3 | SQLite for attempts and profile, input and output guardrails, ContextTracing | RF-15, RF-20, S13 | 1 h |
 | M4 | Eval (8 tasks) and timeout on the AI correction | S14 | 1 h |
 | M5 | Dockerfile, compose and README | S15 | 45 min |
@@ -213,7 +231,10 @@ Each milestone must end with a part that operates.
 | Languages | UI in Italian, target language English | MVP scope. It is easy to verify the content. |
 | Theory | Static first, then RAG on the same cards | The demo always operates. No work is lost. |
 | Correction | Fixed rules for closed exercises, AI for open exercises | Reliability and cost |
-| Architecture | One agent and an MCP server | One flow. Other hosts can use the tools. |
+| Architecture | Multi-agent generation (writer + verifier, DagPipeline) and an MCP server | The verifier stops wrong exercises. Other hosts can use the MCP tools. Decision of the project owner. |
+| MCP SDK | `mcp` 1.x (FastMCP) | The datapizza `MCPClient` does not operate with `mcp` 2.x. |
+| Tests | Only the strictly necessary tests | Decision of the project owner. Tests protect logic, contracts and security rules. |
+| Commits | Conventional Commits, no AI attribution | Decision of the project owner. |
 | Provider | OpenAI, Gemini, Anthropic, Ollama through a factory | The brief requires more than one provider. |
 | Persistence | SQLite | No infrastructure. It is sufficient for one user. |
 | Frontend runtime | Angular 22.3 on Node 24 (`.nvmrc`) | Angular 22 requires Node 24.15 or later. It installs with npm 11 and no `legacy-peer-deps`. |
