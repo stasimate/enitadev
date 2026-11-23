@@ -1,0 +1,209 @@
+{
+  "created_at": "2026-11-23T11:29:55+00:00",
+  "provider": "openai",
+  "model": "gpt-4.1-mini",
+  "writer_model": "gpt-4.1-mini",
+  "verifier_model": "gpt-4.1-mini",
+  "passed": true,
+  "evals": [
+    {
+      "name": "review",
+      "score": "7/8",
+      "gate": ">= 7/8",
+      "passed": true,
+      "cases": [
+        {
+          "id": "good-fill-present-simple",
+          "edge": false,
+          "expected": true,
+          "approved": true,
+          "passed": true,
+          "defect": "none",
+          "issues": [],
+          "correct_options": [
+            "works"
+          ]
+        },
+        {
+          "id": "good-choice-past-simple",
+          "edge": false,
+          "expected": true,
+          "approved": true,
+          "passed": true,
+          "defect": "none",
+          "issues": [],
+          "correct_options": [
+            "went"
+          ]
+        },
+        {
+          "id": "wrong-answer-irregular-participle",
+          "edge": false,
+          "expected": false,
+          "approved": false,
+          "passed": true,
+          "defect": "the expected answer is wrong English (readed)",
+          "issues": [
+            "The answer 'readed' is incorrect; the past participle of 'read' is 'read' (pronounced like 'red').",
+            "The explanation incorrectly states that 'read' forms the participle with '-ed', which is wrong.",
+            "The completed sentence 'I have readed that book twice.' is grammatically incorrect.",
+            "The exercise answers do not contain the correct past participle form needed for the present perfect."
+          ],
+          "correct_options": []
+        },
+        {
+          "id": "two-correct-options",
+          "edge": false,
+          "expected": false,
+          "approved": false,
+          "passed": true,
+          "defect": "'walks' is also correct",
+          "issues": [
+            "These options also give a correct sentence: ['walks']. Change them.",
+            "More than one correct option fits grammatically and naturally in the blank, so the exercise is ambiguous.",
+            "The 'answers' list contains only 'goes', but 'walks' is also a correct form in context.",
+            "Instruction is too generic and doesn't guide about subject-verb agreement explicitly."
+          ],
+          "correct_options": [
+            "goes",
+            "walks"
+          ]
+        },
+        {
+          "id": "repeated-words",
+          "edge": false,
+          "expected": false,
+          "approved": false,
+          "passed": true,
+          "defect": "the answer repeats 'finished'",
+          "issues": [
+            "The answer repeats a word of the prompt. The completed sentence is: He has finished finished his homework.",
+            "The completed sentence repeats 'finished' twice, which is incorrect.",
+            "There is more than one 'finished' word, indicating a repeated word error.",
+            "The instruction is correct and the explanation correct, but the actual example is wrong because the sentence is not natural and grammatically incorrect.",
+            "Answers contain a correct form but its insertion leads to a duplicated word in the prompt, so it's incorrectly formatted."
+          ],
+          "correct_options": []
+        },
+        {
+          "id": "explanation-contradicts-card",
+          "edge": false,
+          "expected": false,
+          "approved": false,
+          "passed": true,
+          "defect": "the explanation names the wrong tense",
+          "issues": [
+            "The explanation is incorrect: it says 'past simple' instead of 'present continuous'.",
+            "The instruction is too general but acceptable; however, the explanation contradicts the theory card.",
+            "The exercise practises the present continuous, but the explanation misleads by mentioning past simple.",
+            "Other conditions are met, but the incorrect explanation is a critical issue."
+          ],
+          "correct_options": [
+            "is raining",
+            "'s raining"
+          ]
+        },
+        {
+          "id": "leaked-solution",
+          "edge": false,
+          "expected": false,
+          "approved": false,
+          "passed": true,
+          "defect": "the instruction shows the solution",
+          "issues": [
+            "The instruction or the prompt shows the solution."
+          ],
+          "correct_options": [
+            "bigger"
+          ]
+        },
+        {
+          "id": "edge-article-ambiguity",
+          "edge": true,
+          "expected": false,
+          "approved": true,
+          "passed": false,
+          "defect": "'the' also gives a correct sentence",
+          "issues": [],
+          "correct_options": [
+            "a"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "trajectory",
+      "score": "3/3",
+      "gate": "3/3",
+      "passed": true,
+      "cases": [
+        {
+          "topic_id": "present-simple",
+          "type": "fill_blank",
+          "passed": true,
+          "checks": {
+            "approved": true,
+            "theory_card_first": true,
+            "profile_used": true,
+            "in_time_budget": true
+          },
+          "tools": [
+            "get_theory_card",
+            "get_learner_profile"
+          ],
+          "attempts": 1,
+          "seconds": 4.8,
+          "tokens": {
+            "prompt": 3676,
+            "completion": 152
+          },
+          "error": null
+        },
+        {
+          "topic_id": "past-simple",
+          "type": "multiple_choice",
+          "passed": true,
+          "checks": {
+            "approved": true,
+            "theory_card_first": true,
+            "profile_used": true,
+            "in_time_budget": true
+          },
+          "tools": [
+            "get_theory_card",
+            "get_learner_profile"
+          ],
+          "attempts": 1,
+          "seconds": 5.1,
+          "tokens": {
+            "prompt": 4223,
+            "completion": 175
+          },
+          "error": null
+        },
+        {
+          "topic_id": "comparatives-superlatives",
+          "type": "fill_blank",
+          "passed": true,
+          "checks": {
+            "approved": true,
+            "theory_card_first": true,
+            "profile_used": true,
+            "in_time_budget": true
+          },
+          "tools": [
+            "get_theory_card",
+            "get_learner_profile"
+          ],
+          "attempts": 1,
+          "seconds": 5.2,
+          "tokens": {
+            "prompt": 4305,
+            "completion": 170
+          },
+          "error": null
+        }
+      ]
+    }
+  ]
+}
