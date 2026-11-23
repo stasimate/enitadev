@@ -9,7 +9,7 @@ dependencies = [
     "datapizza-ai-clients-google",
     "datapizza-ai-clients-anthropic",
     "datapizza-ai-clients-openai-like",
-    "mcp[cli]>=1.20",
+    "mcp[cli]>=1.20,<2",  # datapizza MCPClient is not compatible with mcp 2.x
     "fastapi>=0.115",
     "uvicorn[standard]>=0.34",
     "pydantic>=2.9",

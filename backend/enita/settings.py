@@ -4,6 +4,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Literal
 
+from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 BACKEND_DIR = Path(__file__).resolve().parent.parent
@@ -21,6 +22,14 @@ class Settings(BaseSettings):
     provider: Provider = "openai"
     model: str = "gpt-4o-mini"
     llm_timeout_s: float = 20.0
+    # The writer makes a new draft when the verifier rejects one. This is the maximum attempts.
+    max_writer_attempts: int = 2
+
+    # Provider keys use the standard names, without the ENITA_ prefix.
+    openai_api_key: SecretStr | None = Field(None, validation_alias="OPENAI_API_KEY")
+    google_api_key: SecretStr | None = Field(None, validation_alias="GOOGLE_API_KEY")
+    anthropic_api_key: SecretStr | None = Field(None, validation_alias="ANTHROPIC_API_KEY")
+    ollama_base_url: str = Field("http://localhost:11434/v1", validation_alias="OLLAMA_BASE_URL")
     db_path: Path = BACKEND_DIR / "data" / "enita.db"
     content_dir: Path = BACKEND_DIR.parent / "content" / "en" / "topics"
     # The Angular build. When the directory exists, FastAPI serves it at "/".
