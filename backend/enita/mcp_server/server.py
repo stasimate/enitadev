@@ -16,6 +16,7 @@ def build_server(content: ContentRepository | None = None, db: Database | None =
     store = db or Database(get_settings().db_path)
     server = FastMCP(
         name="enita",
+        log_level="WARNING",
         instructions="Theory cards of Enita: English grammar for Italian speakers (CEFR A1-B1).",
     )
 

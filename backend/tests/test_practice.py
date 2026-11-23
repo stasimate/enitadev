@@ -166,3 +166,27 @@ def test_answers_update_profile_and_audit(client: TestClient) -> None:
     events = [(a["event"], a["outcome"]) for a in client.get("/api/audit").json()]
     assert ("exercise.generate", "approved") in events
     assert ("guardrail.input", "flagged") in events
+
+
+async def test_generation_timeout(tmp_path) -> None:
+    import asyncio
+
+    from enita.practice.service import GenerationTimeout
+
+    class SlowAgent(FakeAgent):
+        async def a_run(self, task_input, **kwargs):
+            await asyncio.sleep(1)
+            return await super().a_run(task_input, **kwargs)
+
+    db = Database(tmp_path / "t.db")
+    settings = get_settings().model_copy(update={"generation_timeout_s": 0.05})
+    service = PracticeService(
+        settings,
+        get_content(),
+        db,
+        tools=no_tools,
+        agents=lambda tools: (SlowAgent([FILL]), FakeAgent([APPROVE])),
+    )
+    with pytest.raises(GenerationTimeout):
+        await service.create("present-simple", "fill_blank")
+    assert db.list_audit(1)[0]["outcome"] == "timeout"

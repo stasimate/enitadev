@@ -1,5 +1,6 @@
 """Practice use cases: make an exercise (multi-agent + MCP) and check an answer."""
 
+import asyncio
 import os
 import random
 import sys
@@ -41,6 +42,10 @@ class ExerciseNotFound(LookupError):
     pass
 
 
+class GenerationTimeout(TimeoutError):
+    """The generation took more time than ENITA_GENERATION_TIMEOUT_S."""
+
+
 class ProviderCallError(RuntimeError):
     """The LLM provider refused or failed the request (for example, a wrong API key)."""
 
@@ -61,7 +66,12 @@ def mcp_tools(settings: Settings) -> ToolsProvider:
             "ENITA_CONTENT_DIR": str(settings.content_dir),
             "ENITA_DB_PATH": str(settings.db_path),
         }
-        async with MCPClient(command=sys.executable, args=["-m", "enita.mcp_server"], env=env) as c:
+        async with MCPClient(
+            command=sys.executable,
+            args=["-m", "enita.mcp_server"],
+            env=env,
+            timeout=settings.mcp_timeout_s,
+        ) as c:
             yield await c.a_list_tools()
 
     return provider
@@ -122,7 +132,10 @@ class PracticeService:
             # Audit trail (RNF-04): the trace records the LLM calls, the tool calls and tokens.
             with ContextTracing().trace("exercise.generate") as trace:
                 try:
-                    async with self.tools() as tools:
+                    async with (
+                        asyncio.timeout(self.settings.generation_timeout_s),
+                        self.tools() as tools,
+                    ):
                         writer, verifier = self.agents(tools)
                         result = await generate_exercise(
                             writer,
@@ -140,6 +153,9 @@ class PracticeService:
             # The MCP stdio client wraps errors in exception groups. Get the root cause.
             cause = _root_cause(exc)
             record["error"] = f"{type(cause).__name__}: {cause}"[:500]
+            if isinstance(cause, TimeoutError):
+                outcome = "timeout"
+                raise GenerationTimeout(record["error"]) from exc
             if isinstance(cause, GenerationError):
                 outcome = "rejected"
             if isinstance(cause, GenerationError | ProviderConfigError):

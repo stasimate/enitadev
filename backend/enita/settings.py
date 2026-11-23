@@ -24,7 +24,9 @@ class Settings(BaseSettings):
     # Optional model routing (RF-31). Empty: the agent uses `model`.
     writer_model: str | None = None
     verifier_model: str | None = None
-    llm_timeout_s: float = 20.0
+    # Timeouts (RNF-06). The generation is the critical AI tool: writer + verifier + retries.
+    generation_timeout_s: float = 45.0
+    mcp_timeout_s: int = 10
     # The writer makes a new draft when the verifier rejects one. This is the maximum attempts.
     max_writer_attempts: int = 3
 

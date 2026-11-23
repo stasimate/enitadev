@@ -12,6 +12,7 @@ from enita.api.topics import get_content
 from enita.models import AnswerRequest, Exercise, ExerciseRequest, Feedback
 from enita.practice.service import (
     ExerciseNotFound,
+    GenerationTimeout,
     PracticeService,
     ProviderCallError,
     TopicNotFound,
@@ -42,6 +43,8 @@ async def create_exercise(req: ExerciseRequest, practice: Practice) -> Exercise:
         return await practice.create(req.topic_id, req.type)
     except TopicNotFound:
         raise HTTPException(404, f"Topic '{req.topic_id}' not found") from None
+    except GenerationTimeout:
+        raise HTTPException(504, "The tutor took too much time. Try again.") from None
     except ProviderConfigError as exc:
         raise HTTPException(503, str(exc)) from None
     except ProviderCallError as exc:
