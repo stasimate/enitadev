@@ -1,7 +1,15 @@
 import { HttpClient, httpResource } from '@angular/common/http';
 import { inject, Service } from '@angular/core';
 import { Observable } from 'rxjs';
-import { Exercise, ExerciseType, Feedback, TopicCard, TopicSummary } from './models';
+import {
+  Exercise,
+  ExerciseType,
+  Explanation,
+  Feedback,
+  LearnerProfile,
+  TopicCard,
+  TopicSummary,
+} from './models';
 
 /**
  * The only access point to the backend REST API.
@@ -35,5 +43,15 @@ export class Api {
   /** Ask the backend to prepare exercises in advance. Fire and forget (202). */
   prefetch(topicId: string): Observable<void> {
     return this.http.post<void>(`/api/topics/${encodeURIComponent(topicId)}/prefetch`, null);
+  }
+
+  /** Ask the Tutor for a new explanation of a topic. This can take 5 to 15 seconds. */
+  explain(topicId: string): Observable<Explanation> {
+    return this.http.post<Explanation>(`/api/topics/${encodeURIComponent(topicId)}/explain`, {});
+  }
+
+  /** The learning profile of the student. */
+  progress() {
+    return httpResource<LearnerProfile>(() => '/api/progress');
   }
 }

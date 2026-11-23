@@ -5,11 +5,13 @@ import { ExerciseView } from '../exercise-view/exercise-view';
 import { FeedbackView } from '../feedback-view/feedback-view';
 import { SessionStore } from '../../session/session-store';
 import { SessionSummary } from '../../session/session-summary/session-summary';
+import { PracticeShortcuts } from '../practice-shortcuts';
 import { PracticeStore } from '../practice-store';
 
 /** The practice part: it arranges the exercise, the answer form and the feedback. */
 @Component({
   selector: 'en-practice-panel',
+  host: { '(document:keydown)': 'shortcuts.handle($event)' },
   imports: [ExerciseView, AnswerForm, FeedbackView, SessionSummary],
   template: `
     <div class="flex flex-col gap-4 border-2 border-ink p-4 shadow-brutal">
@@ -103,6 +105,8 @@ import { PracticeStore } from '../practice-store';
         }
       }
 
+      <p class="text-xs">TASTI: 1–4 · N · P</p>
+
       @if (practice.error(); as message) {
         <div
           role="alert"
@@ -127,6 +131,7 @@ export class PracticePanel {
   protected readonly theory = inject(TheoryStore);
   protected readonly practice = inject(PracticeStore);
   protected readonly session = inject(SessionStore);
+  protected readonly shortcuts = inject(PracticeShortcuts);
 
   /** Sent after the theory section is highlighted. The shell then shows it. */
   readonly ruleShown = output<void>();

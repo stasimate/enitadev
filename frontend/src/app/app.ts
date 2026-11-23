@@ -1,36 +1,40 @@
-import { afterNextRender, Component, inject, Injector, signal } from '@angular/core';
-import { PracticePanel } from './features/practice/practice-panel/practice-panel';
-import { TheoryCard } from './features/theory/theory-card/theory-card';
-import { TheoryStore } from './features/theory/theory-store';
-import { TopicSelect } from './features/theory/topic-select/topic-select';
+import { Component } from '@angular/core';
+import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 
-type Pane = 'theory' | 'practice';
-
-/** The application shell: header and split-screen layout. */
+/** The application shell: the header with the navigation and the routed page. */
 @Component({
   selector: 'en-root',
-  imports: [TopicSelect, TheoryCard, PracticePanel],
-  templateUrl: './app.html',
+  imports: [RouterOutlet, RouterLink, RouterLinkActive],
+  template: `
+    <div class="flex min-h-dvh flex-col">
+      <header
+        class="flex flex-wrap items-center justify-between gap-3 border-b-2 border-ink px-4 py-3"
+      >
+        <h1 class="text-xl font-bold tracking-tight">
+          ENITA<span class="cursor-blink text-accent">_</span>
+        </h1>
+        <nav class="flex gap-2" aria-label="Pagine">
+          <a
+            routerLink="/"
+            routerLinkActive="bg-ink text-paper"
+            ariaCurrentWhenActive="page"
+            [routerLinkActiveOptions]="{ exact: true }"
+            class="border-2 border-ink px-3 py-1 font-bold uppercase shadow-brutal-sm"
+          >
+            [ Studia ]
+          </a>
+          <a
+            routerLink="/progressi"
+            routerLinkActive="bg-ink text-paper"
+            ariaCurrentWhenActive="page"
+            class="border-2 border-ink px-3 py-1 font-bold uppercase shadow-brutal-sm"
+          >
+            [ Progressi ]
+          </a>
+        </nav>
+      </header>
+      <router-outlet />
+    </div>
+  `,
 })
-export class App {
-  protected readonly theory = inject(TheoryStore);
-
-  /** The active pane on small screens. Below `lg`, the two panes are tabs. */
-  protected readonly activePane = signal<Pane>('theory');
-
-  private readonly injector = inject(Injector);
-
-  /** Show the theory pane and scroll to the highlighted section. */
-  protected revealRule(): void {
-    this.activePane.set('theory');
-    afterNextRender(
-      () => {
-        const slug = this.theory.highlighted();
-        document
-          .getElementById(`sec-${slug}`)
-          ?.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
-      },
-      { injector: this.injector },
-    );
-  }
-}
+export class App {}

@@ -1,14 +1,10 @@
-<div class="flex min-h-dvh flex-col">
-  <header class="flex flex-wrap items-center justify-between gap-3 border-b-2 border-ink px-4 py-3">
-    <h1 class="text-xl font-bold tracking-tight">
-      ENITA<span class="cursor-blink text-accent">_</span>
-    </h1>
+  <div class="border-b-2 border-ink px-4 py-3">
     <en-topic-select
       [groups]="theory.groups()"
       [selected]="theory.selectedId()"
       (selectedChange)="$event && theory.select($event)"
     />
-  </header>
+  </div>
 
   <nav class="flex border-b-2 border-ink lg:hidden" aria-label="Sezioni">
     <button
@@ -41,7 +37,9 @@
     >
       <h2 id="theory-title" class="mb-4 text-sm font-bold uppercase">// Teoria</h2>
       @if (theory.card.hasValue()) {
-        <en-theory-card [card]="theory.card.value()" [highlighted]="theory.highlighted()" />
+        <en-theory-card [card]="theory.card.value()" [highlighted]="theory.highlighted()">
+          <en-explain-panel />
+        </en-theory-card>
       } @else if (theory.card.error() || theory.topics.error()) {
         <p role="alert" class="border-2 border-err p-4 text-err">
           [ ERRORE ] Il backend non risponde.
@@ -60,4 +58,3 @@
       <en-practice-panel (ruleShown)="revealRule()" />
     </section>
   </main>
-</div>
