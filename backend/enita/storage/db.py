@@ -5,7 +5,7 @@ import sqlite3
 import uuid
 from collections.abc import Iterator
 from contextlib import contextmanager
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -42,6 +42,17 @@ CREATE TABLE IF NOT EXISTS audit (
 );
 CREATE INDEX IF NOT EXISTS attempts_topic ON attempts(topic_id);
 """
+
+
+def streak(active_days: list[str], today: date) -> int:
+    """Consecutive active days that end today (or yesterday, if today has no attempt yet)."""
+    days = set(active_days)
+    day = today if today.isoformat() in days else today - timedelta(days=1)
+    count = 0
+    while day.isoformat() in days:
+        count += 1
+        day -= timedelta(days=1)
+    return count
 
 
 def _now() -> str:
@@ -168,7 +179,17 @@ class Database:
                 "GROUP BY rule_ref ORDER BY n DESC, rule_ref LIMIT 5",
                 args,
             ).fetchall()
+            days = [
+                r["d"]
+                for r in c.execute(
+                    "SELECT DISTINCT substr(created_at, 1, 10) d FROM attempts "
+                    "WHERE flagged = 0 AND created_at >= ? ORDER BY d",
+                    ((date.today() - timedelta(days=29)).isoformat(),),
+                ).fetchall()
+            ]
         return LearnerProfile(
+            streak_days=streak(days, date.today()),
+            active_days=days,
             topics=[
                 TopicProgress(
                     topic_id=r["topic_id"],

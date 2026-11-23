@@ -69,6 +69,11 @@ def mcp_tools(settings: Settings) -> ToolsProvider:
             "PATH": os.environ.get("PATH", ""),
             "ENITA_CONTENT_DIR": str(settings.content_dir),
             "ENITA_DB_PATH": str(settings.db_path),
+            "ENITA_EMBEDDING_MODEL": settings.embedding_model,
+            "ENITA_QDRANT_URL": settings.qdrant_url or "",
+            "OPENAI_API_KEY": (
+                settings.openai_api_key.get_secret_value() if settings.openai_api_key else ""
+            ),
         }
         async with MCPClient(
             command=sys.executable,
@@ -81,13 +86,22 @@ def mcp_tools(settings: Settings) -> ToolsProvider:
     return provider
 
 
+WRITER_TOOLS = {"get_theory_card", "get_learner_profile"}
+EXPLAINER_TOOLS = {"search_grammar", "get_learner_profile"}
+
+
+def only(tools: list[Any], names: set[str]) -> list[Any]:
+    """Least privilege: give an agent only the MCP tools that its job needs."""
+    return [t for t in tools if t.name in names]
+
+
 def default_agents(settings: Settings) -> AgentsFactory:
     def factory(tools: list[Any]) -> tuple[AgentLike, AgentLike]:
         writer = Agent(
             name="writer",
             client=get_client(settings, settings.writer_model),
             system_prompt=WRITER_SYSTEM,
-            tools=tools,
+            tools=only(tools, WRITER_TOOLS),
             output_cls=ExerciseDraft,
             max_steps=4,
         )

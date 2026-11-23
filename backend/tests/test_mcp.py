@@ -6,7 +6,11 @@ from enita.settings import get_settings
 
 async def test_mcp_server_gives_theory_tool() -> None:
     async with mcp_tools(get_settings())() as tools:
-        assert sorted(t.name for t in tools) == ["get_learner_profile", "get_theory_card"]
+        assert sorted(t.name for t in tools) == [
+            "get_learner_profile",
+            "get_theory_card",
+            "search_grammar",
+        ]
 
 
 async def test_get_theory_card_over_stdio() -> None:

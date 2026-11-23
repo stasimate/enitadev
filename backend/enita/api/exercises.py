@@ -9,7 +9,8 @@ from fastapi import APIRouter, Depends, HTTPException
 from enita.agent.clients import ProviderConfigError
 from enita.agent.pipeline import GenerationError
 from enita.api.topics import get_content
-from enita.models import AnswerRequest, Exercise, ExerciseRequest, Feedback
+from enita.models import AnswerRequest, Exercise, ExerciseRequest, ExplainResponse, Feedback
+from enita.practice.explain import ExplainService
 from enita.practice.service import (
     ExerciseNotFound,
     GenerationTimeout,
@@ -35,6 +36,14 @@ def get_practice() -> PracticeService:
 
 
 Practice = Annotated[PracticeService, Depends(get_practice)]
+
+
+@lru_cache
+def get_explainer() -> ExplainService:
+    return ExplainService(get_settings(), get_content(), get_db())
+
+
+Explainer = Annotated[ExplainService, Depends(get_explainer)]
 
 
 @router.post("")
@@ -75,3 +84,27 @@ async def prefetch(topic_id: str, practice: Practice) -> None:
         practice.prefetch(topic_id)
     except TopicNotFound:
         raise HTTPException(404, f"Topic '{topic_id}' not found") from None
+
+
+@topics_router.post("/{topic_id}/explain")
+async def explain(topic_id: str, explainer: Explainer) -> ExplainResponse:
+    """'Spiegami meglio': explain the rule again with RAG on the cards."""
+    try:
+        return await explainer.explain(topic_id)
+    except TopicNotFound:
+        raise HTTPException(404, f"Topic '{topic_id}' not found") from None
+    except GenerationTimeout:
+        raise HTTPException(504, "The tutor took too much time. Try again.") from None
+    except ProviderConfigError as exc:
+        raise HTTPException(503, str(exc)) from None
+    except ProviderCallError as exc:
+        log.error("Explain failed: %s", exc)
+        detail = (
+            "The explanation needs OPENAI_API_KEY for the embeddings."
+            if "embeddings" in str(exc)
+            else "The LLM provider refused the request. Check the API key."
+        )
+        raise HTTPException(503, detail) from None
+    except GenerationError as exc:
+        log.warning("Explain rejected: %s", exc)
+        raise HTTPException(502, "The tutor did not make a valid explanation.") from None
