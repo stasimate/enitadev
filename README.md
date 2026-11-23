@@ -4,7 +4,9 @@ Enita is a simulator that helps Italian speakers learn English. Artificial intel
 controls the simulator. The screen has two parts:
 
 - The left part shows the **theory**: a card for each grammar topic (CEFR A1 to B1).
-- The right part shows the **practice**: exercises that AI agents make and verify.
+- The right part shows the **practice**: exercises that AI agents make and verify, in five
+  types (fill in the blank, multiple choice, reorder, transform, find the error), one at a
+  time or in a session of 10 with a summary.
 
 When you make an error, the feedback shows the rule that you did not obey. The theory part
 highlights that rule.
@@ -26,7 +28,7 @@ Angular 22 + Tailwind v4 · Docker.
 | LLM and agent core | Two datapizza `Agent`s (writer and verifier) with structured output. A client factory for OpenAI, Google, Anthropic and Ollama. Permanent memory in SQLite (learner profile). |
 | Orchestration | Multi-agent `DagPipeline`: writer → (fixed-rule check ∥ verifier) → decision, with a retry loop. An MCP server supplies the tools `get_theory_card` and `get_learner_profile`. |
 | Security and governance | Input guardrail on the student answer, output guardrail on the writer. `ContextTracing` audit trail in SQLite (`GET /api/audit`). No raw student answer goes into an LLM prompt. |
-| Reliability | Review eval (8 cases, gate 7/8) and trajectory eval (3 real generations, gate 3/3). Timeouts on the generation (45 s) and on MCP tool calls (10 s). |
+| Reliability | Review eval (11 cases, gate 10/11) and trajectory eval (3 real generations, gate 3/3). Timeouts on the generation (45 s) and on MCP tool calls (10 s). |
 | Production | One Docker image (FastAPI serves the API and the Angular build). A Docker dev stack with hot reload. GitHub Actions CI with the evals as a gate for the Docker build. |
 
 ```
@@ -81,6 +83,7 @@ All the settings are in `.env` (refer to [`.env.example`](.env.example)).
 | `OPENAI_API_KEY`, `GOOGLE_API_KEY`, `ANTHROPIC_API_KEY` | empty | The key of the selected provider |
 | `ENITA_GENERATION_TIMEOUT_S` | `45` | Timeout of one exercise generation |
 | `ENITA_MCP_TIMEOUT_S` | `10` | Timeout of one MCP tool call |
+| `ENITA_POOL_SIZE` | `2` | Exercises prepared in advance for each topic (0 disables it) |
 
 ## Start for development without Docker
 

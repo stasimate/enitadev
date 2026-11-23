@@ -117,6 +117,10 @@ Do not write a test for code that the framework already tests.
 - MCP server: use the official `mcp` SDK **1.x** (`mcp.server.fastmcp.FastMCP`). Each tool
   has a typed signature and a docstring. Do not upgrade to `mcp` 2.x: the datapizza
   `MCPClient` (datapizza-ai-core 0.1.3) does not operate with it.
+- The logic of each exercise type (preparation, fixed-rule checks, completed sentence,
+  correction) is in `enita/agent/formats.py`. A new type needs: the schema in `models.py`,
+  the rules in `formats.py`, the writer and verifier rules in `prompts.py`, the frontend
+  input, and at least one review eval case.
 - Exercise generation is multi-agent (`enita/agent/pipeline.py`): a DagPipeline with
   writer → (rules check ∥ verifier) → decision. The writer gets the theory only through the
   MCP tool `get_theory_card`. The retry loop is outside the DAG.

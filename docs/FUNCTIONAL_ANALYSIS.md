@@ -62,7 +62,7 @@ Priority: **M** = must (minimum for delivery), **S** = should, **C** = could.
 | ID | Requirement | Pri |
 |---|---|---|
 | RF-10 | For the selected topic, the user asks for a new exercise. The AI tutor makes the exercise from the topic, the level and the past errors. | M |
-| RF-11 | Exercise types: **fill in the blank**, **multiple choice**, **translation from Italian to English**, **sentence correction**. | M (first 2), S (other 2) |
+| RF-11 | Exercise types with a fixed-rule check: **fill in the blank**, **multiple choice**, **reorder** (put the word chunks in order, with an Italian hint), **transform** (for example, make the sentence negative), **find the error** (click the wrong word; the fix can be a different word or the removal of the word). Open types (translation, sentence correction) need the AI check (M6). | M (closed types), S (open types) |
 | RF-12 | The system checks closed exercises (fill in the blank, multiple choice) **with fixed rules**. It compares the answer with the list of correct answers. The AI only writes the explanation. | M |
 | RF-13 | The AI checks open exercises (translation, sentence correction) with a scoring guide (rubric). The output is: result `correct` / `partial` / `wrong`, score 0 to 1, explanation in Italian, rule reference (`topic_id#section`). | S |
 | RF-14 | The feedback always shows the result, the correct answer, a short explanation and a link to the rule in the left part. | M |
@@ -75,6 +75,9 @@ Priority: **M** = must (minimum for delivery), **S** = should, **C** = could.
 | RF-20 | The system keeps a **permanent student profile**: the estimated level, the accuracy for each topic and the errors that occur frequently. | M |
 | RF-21 | The AI uses the profile when it makes exercises. It gives more exercises on the frequent errors (permanent memory). | S |
 | RF-22 | A "Progress" view shows the accuracy for each topic. | C |
+| RF-23 | **Session of 10 exercises**: a progress line (exercise n/10, correct answers), a "next" button and a summary with the score and the wrong rules, each with a link to the rule. | S |
+| RF-24 | **Exercises ready in advance**: when the student opens a topic, the system prepares exercises in the background. A ready exercise appears in less than 0.1 s. | S |
+| RF-25 | **Varied exercises**: the writer does not repeat the sentences, verbs and subjects of the latest exercises of the topic. | S |
 
 ### 3.4 Configuration
 
@@ -91,7 +94,7 @@ Priority: **M** = must (minimum for delivery), **S** = should, **C** = could.
 | RNF-02 | The exercise generation is **multi-agent** (writer and verifier in a DagPipeline). An MCP server supplies the tools. Refer to §5.1. | Orchestration |
 | RNF-03 | There is a minimum of one **guardrail**. It validates the input (the student answer) and the output (the AI correction) of the tool `check_answer`. | Security |
 | RNF-04 | `datapizza.tracing.ContextTracing` records an **audit trail** for each exercise and each correction. | Governance |
-| RNF-05 | **Evals** give a pass or fail result (`uv run python -m evals.run`, exit code 0 only if all gates pass): a review eval (8 drafts, gate 7 of 8) and a trajectory eval (3 real generations, gate 3 of 3). Refer to §6. | Reliability |
+| RNF-05 | **Evals** give a pass or fail result (`uv run python -m evals.run`, exit code 0 only if all gates pass): a review eval (11 drafts, gate 10 of 11) and a trajectory eval (3 real generations, gate 3 of 3). Refer to §6. | Reliability |
 | RNF-06 | The critical AI tool (the exercise generation: writer, verifier and retries) has a **timeout** of 45 s (`ENITA_GENERATION_TIMEOUT_S`). Each MCP tool call has a timeout of 10 s (`ENITA_MCP_TIMEOUT_S`). When the time ends, the API returns 504 and the audit trail records `timeout`. | S14 |
 | RNF-07 | One **Dockerfile** builds one image and starts the application on the local computer. FastAPI serves the API and the Angular build. `docker compose up` starts the image. | Production / S15 |
 | RNF-08 | The README tells how to install and start the application. The project is complete only when it operates. | Production |
@@ -167,6 +170,7 @@ ContextTracing. This is an item of "Cosa alza il livello" in the brief.
 | GET | `/api/topics` | List of topics `{id, title, level}` |
 | GET | `/api/topics/{id}` | Theory card `{id, title, level, sections[], markdown}` |
 | POST | `/api/exercises` | `{topic_id, type?}` → exercise `{id, type, prompt, options?, topic_id}` |
+| POST | `/api/topics/{id}/prefetch` | 202. Prepare exercises for the topic in the background (exercise pool) |
 | POST | `/api/exercises/{id}/answer` | `{answer}` → feedback `{verdict, score, correct_answer, explanation, rule_ref}` |
 | POST | `/api/topics/{id}/explain` | Personal explanation (RF-05) |
 | GET | `/api/progress?topic_id=` | Learner profile: accuracy for each topic, frequent errors for each `rule_ref` |
@@ -213,12 +217,13 @@ ContextTracing. This is an item of "Cosa alza il livello" in the brief.
 - **Evals** (`backend/evals/`). Command: `uv run python -m evals.run`. The run writes
   `evals/last_report.json` and the exit code is 0 only if all gates pass. CI can use it as a
   deploy gate.
-  - **Review eval (LLM-as-judge with a rubric).** 8 fixed drafts: 2 good drafts and 6 drafts
+  - **Review eval (LLM-as-judge with a rubric).** 11 fixed drafts: 3 good drafts and 8 drafts
     with a known defect (wrong English answer, two correct options, repeated words, wrong
-    explanation, leaked solution, ambiguous article). The decision (rules check + verifier +
-    option check) must be correct in 7 of 8 cases. The ambiguous article is a known edge
+    explanation, leaked solution, ambiguous article, a find-error sentence with two errors, a
+    wrong transform answer). The decision (rules check + verifier + option check) must be
+    correct in 10 of 11 cases. The ambiguous article is a known edge
     case: the result changes between runs (8/8 and 7/8 observed).
-  - **Trajectory eval.** 3 real generations through MCP. Each must be approved, the writer
+  - **Trajectory eval.** 3 real generations through MCP (find the error, reorder, transform). Each must be approved, the writer
     must call `get_theory_card` first and then `get_learner_profile` (also on a retry), and
     each generation must take 30 s or less. Gate: 3 of 3.
   - The first run found a real defect: on some tasks the writer did not call
@@ -249,6 +254,7 @@ Each milestone must end with a part that operates.
 | M3 | SQLite for exercises, attempts and audit, learner profile (API and MCP tool), input and output guardrails, ContextTracing audit trail | RF-15, RF-20, RF-21, S13 | done |
 | M4 | Review eval (8 cases) and trajectory eval (3 generations), timeout on the generation and on MCP tool calls | S14 | done |
 | M5 | Docker image tested with the real LLM, Docker dev stack tested, GitHub Actions CI with the eval gate, final README with the MCP setup for other hosts | S15 | done |
+| M7 | Sprint for the end user: 3 new closed exercise types, exercise pool with prefetch, session of 10 with summary, varied exercises | RF-11, RF-23..25 | done |
 | M6 | *(if time is available)* open exercises, "Spiegami meglio", RAG on Qdrant and RAGAS | RF-05, RF-13 | 2 h |
 
 ## 9. Decisions
@@ -274,6 +280,9 @@ Each milestone must end with a part that operates.
 | Unique solution | The verifier lists every option that gives a correct sentence (`correct_options`). The code approves only if this list is the answer. Fixed rules also reject an answer that repeats the words around the blank. | Live test: a global question ("is there one solution?") let ambiguous and repeated-word exercises pass. |
 | Deployment | One Docker image. FastAPI serves the API and the Angular build. | One container is simpler for the demo. There is no CORS configuration in production. |
 | Development runtime | Docker (colima on the host). `compose.dev.yaml` starts the backend and the frontend with hot reload. | Decision of the project owner. The host does not need Python or Node. |
+| Exercise pool | Approved exercises are saved with `served = 0`. A request takes one from the pool, else generates it now. After each request, a background task fills the pool again (`ENITA_POOL_SIZE`, default 2). | Live test: 54 ms from the pool against 5-15 s for a live generation. |
+| New exercise types | Closed types only (reorder, transform, find the error), with the type logic in `enita/agent/formats.py`. Code (not the LLM) shuffles the reorder chunks and splits the find-error words. | The check stays free, instant and deterministic. The LLM cannot make a bad shuffle. |
+| Variety | `get_learner_profile` also returns the solved sentences of the latest 10 exercises. The writer must not reuse them. | In a live session the same rule gave 4 equal exercises ("work → works"). After the change, 8 exercises used 8 different verbs. The sentences come from the agents, not from the student, so they are safe in a prompt. |
 | Frontend structure | `core/`, `features/`, `shared/`. One component has one responsibility. A feature store keeps the state. | Decision of the project owner. Small components are easy to test and to change. |
 
 ## 10. Open questions
