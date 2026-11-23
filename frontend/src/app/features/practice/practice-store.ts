@@ -1,0 +1,91 @@
+import { HttpErrorResponse } from '@angular/common/http';
+import { effect, inject, Service, signal, untracked } from '@angular/core';
+import { Subscription } from 'rxjs';
+import { Api } from '../../core/api';
+import { Exercise, Feedback } from '../../core/models';
+import { TheoryStore } from '../theory/theory-store';
+
+export type PracticeStatus = 'idle' | 'loading' | 'answering' | 'checking' | 'feedback' | 'error';
+
+/** State of the practice part: the exercise, the feedback and the request status. */
+@Service()
+export class PracticeStore {
+  private readonly api = inject(Api);
+  private readonly theory = inject(TheoryStore);
+  private pending: Subscription | null = null;
+
+  readonly exercise = signal<Exercise | null>(null);
+  readonly feedback = signal<Feedback | null>(null);
+  readonly status = signal<PracticeStatus>('idle');
+  readonly error = signal<string | null>(null);
+
+  constructor() {
+    // A new topic makes the old exercise useless.
+    effect(() => {
+      this.theory.selectedId();
+      untracked(() => this.reset());
+    });
+  }
+
+  newExercise(topicId: string): void {
+    this.pending?.unsubscribe();
+    this.exercise.set(null);
+    this.feedback.set(null);
+    this.error.set(null);
+    this.status.set('loading');
+    this.pending = this.api.createExercise(topicId).subscribe({
+      next: (exercise) => {
+        this.exercise.set(exercise);
+        this.status.set('answering');
+      },
+      error: (err: unknown) => this.fail(err),
+    });
+  }
+
+  submit(answer: string): void {
+    const exercise = this.exercise();
+    if (!exercise || this.status() !== 'answering') return;
+    this.error.set(null);
+    this.status.set('checking');
+    this.pending = this.api.answerExercise(exercise.id, answer).subscribe({
+      next: (feedback) => {
+        this.feedback.set(feedback);
+        this.status.set('feedback');
+      },
+      error: (err: unknown) => this.fail(err, 'answering'),
+    });
+  }
+
+  /** Highlight the theory section of the feedback. Only for the topic on screen. */
+  showRule(): void {
+    const ref = this.feedback()?.rule_ref;
+    if (!ref) return;
+    const [topicId, slug] = ref.split('#');
+    if (slug && topicId === this.theory.selectedId()) this.theory.highlighted.set(slug);
+  }
+
+  private reset(): void {
+    this.pending?.unsubscribe();
+    this.pending = null;
+    this.exercise.set(null);
+    this.feedback.set(null);
+    this.error.set(null);
+    this.status.set('idle');
+  }
+
+  /** A rejected answer lets the student try again. A failed exercise does not. */
+  private fail(err: unknown, next: 'error' | 'answering' = 'error'): void {
+    this.error.set(this.messageFor(err));
+    this.status.set(next);
+  }
+
+  private messageFor(err: unknown): string {
+    const status = err instanceof HttpErrorResponse ? err.status : 0;
+    if (status === 502) return 'Il Tutor non è riuscito a creare un esercizio. Riprova.';
+    if (status === 422) {
+      const detail: unknown = (err as HttpErrorResponse).error?.detail;
+      return typeof detail === 'string' && detail ? detail : 'Risposta non valida.';
+    }
+    return 'Il backend non risponde.';
+  }
+}

@@ -32,7 +32,7 @@
 
     <section aria-labelledby="practice-title" class="p-6 lg:block" [class.hidden]="activePane() !== 'practice'">
       <h2 id="practice-title" class="mb-4 text-sm font-bold uppercase">// Pratica</h2>
-      <en-practice-panel [topicTitle]="theory.card.hasValue() ? theory.card.value().title : null" />
+      <en-practice-panel (ruleShown)="revealRule()" />
     </section>
   </main>
 </div>

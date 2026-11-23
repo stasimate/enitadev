@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { afterNextRender, Component, inject, Injector, signal } from '@angular/core';
 import { PracticePanel } from './features/practice/practice-panel/practice-panel';
 import { TheoryCard } from './features/theory/theory-card/theory-card';
 import { TheoryStore } from './features/theory/theory-store';
@@ -17,4 +17,18 @@ export class App {
 
   /** The active pane on small screens. Below `lg`, the two panes are tabs. */
   protected readonly activePane = signal<Pane>('theory');
+
+  private readonly injector = inject(Injector);
+
+  /** Show the theory pane and scroll to the highlighted section. */
+  protected revealRule(): void {
+    this.activePane.set('theory');
+    afterNextRender(
+      () => {
+        const slug = this.theory.highlighted();
+        document.getElementById(`sec-${slug}`)?.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
+      },
+      { injector: this.injector },
+    );
+  }
 }

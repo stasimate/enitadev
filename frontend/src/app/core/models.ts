@@ -20,3 +20,27 @@ export interface Section {
 export interface TopicCard extends TopicSummary {
   sections: Section[];
 }
+
+export type ExerciseType = 'fill_blank' | 'multiple_choice';
+
+export interface Exercise {
+  id: string;
+  topic_id: string;
+  type: ExerciseType;
+  instruction: string;
+  /** English sentence. A fill_blank prompt contains `___` where the answer goes. */
+  prompt: string;
+  /** Three or four choices for multiple_choice. Empty for fill_blank. */
+  options: string[];
+}
+
+export type Verdict = 'correct' | 'partial' | 'wrong';
+
+export interface Feedback {
+  verdict: Verdict;
+  score: number;
+  correct_answer: string;
+  explanation: string;
+  /** Format: `<topic_id>#<section-slug>`. */
+  rule_ref: string;
+}
