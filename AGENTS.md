@@ -36,6 +36,7 @@ enitadev/
 │   │   ├── content/          ← loader and parser for the markdown cards
 │   │   ├── storage/          ← SQLite (exercises, attempts, audit) in db.py
 │   │   ├── practice/         ← use cases: make an exercise, check an answer
+│   │   ├── rag/              ← hybrid search on the cards (Qdrant + BM25)
 │   │   ├── audit.py          ← ContextTracing spans → audit record
 │   │   ├── models.py         ← Pydantic schemas for the API, the agent and MCP
 │   │   ├── settings.py       ← pydantic-settings, reads .env
@@ -121,6 +122,10 @@ Do not write a test for code that the framework already tests.
   correction) is in `enita/agent/formats.py`. A new type needs: the schema in `models.py`,
   the rules in `formats.py`, the writer and verifier rules in `prompts.py`, the frontend
   input, and at least one review eval case.
+- Give each agent only the MCP tools that its job needs (`only()` in `practice/service.py`).
+  Make every tool parameter required: OpenAI strict mode refuses optional parameters.
+- "Spiegami meglio" (`practice/explain.py`) may cite only passages that `search_grammar`
+  returned in the same trace. When you change the RAG, run the `rag` eval.
 - Exercise generation is multi-agent (`enita/agent/pipeline.py`): a DagPipeline with
   writer → (rules check ∥ verifier) → decision. The writer gets the theory only through the
   MCP tool `get_theory_card`. The retry loop is outside the DAG.
@@ -162,7 +167,7 @@ Do not write a test for code that the framework already tests.
 
 - Use one file for each topic. The filename is the `id` (kebab-case, for example
   `present-simple.md`).
-- The YAML front matter has `id`, `title` (Italian), `level` (A1, A2 or B1) and `tags`.
+- The YAML front matter has `id`, `title` (Italian), `level` (A1, A2, B1 or B2) and `tags`.
 - Use these H2 sections, in this sequence: `## Regola`, `## Esempi`, `## Attenzione`,
   `## Riepilogo`. The section slugs (`regola`, `esempi`, `attenzione`, `riepilogo`) are the
   `rule_ref` anchors.
