@@ -5,7 +5,7 @@ sentence (for the verifier) and the correct-answer text (for the feedback).
 import random
 import re
 
-from enita.models import BLANK, ExerciseDraft
+from enita.models import BLANK, WRITING_TYPES, ExerciseDraft
 
 BLANK_TYPES = ("fill_blank", "multiple_choice")
 _WORD = re.compile(r"[A-Za-z0-9]+(?:['’-][A-Za-z0-9]+)*")
@@ -84,6 +84,20 @@ def _repeats_context(prompt: str, answer: str) -> bool:
 def format_issues(draft: ExerciseDraft) -> list[str]:
     """Fixed-rule checks for each exercise type."""
     issues: list[str] = []
+    if draft.type in WRITING_TYPES:
+        if draft.options:
+            issues.append(f"A {draft.type} exercise must have no options.")
+        if not 2 <= len(draft.criteria) <= 4:
+            issues.append("A writing exercise needs 2 to 4 criteria for the grader.")
+        if not 1 <= len(draft.answers) <= 3:
+            issues.append("A writing exercise needs 1 to 3 model answers.")
+        if BLANK in draft.prompt:
+            issues.append(f"A {draft.type} exercise must not contain '{BLANK}'.")
+        if draft.type == "dialogue" and ":" not in draft.prompt:
+            issues.append("A dialogue prompt is one line of a character: 'Name: text'.")
+        return issues
+    if draft.criteria:
+        issues.append("A closed exercise must have no criteria.")
     blanks = draft.prompt.count(BLANK)
     if draft.type in BLANK_TYPES:
         if blanks != 1:
@@ -126,3 +140,13 @@ def format_issues(draft: ExerciseDraft) -> list[str]:
         if draft.answers and normalize(draft.correction) == normalize(draft.answers[0]):
             issues.append("find_error needs a correction that is different from the wrong word.")
     return issues
+
+
+def too_similar(prompt: str, recent: list[str], limit: float = 0.7) -> str | None:
+    """Return the recent prompt that the new prompt repeats (word overlap >= limit), if any."""
+    new = {w.lower() for w in words(prompt)}
+    for old in recent:
+        seen = {w.lower() for w in words(old)}
+        if new and seen and len(new & seen) / len(new | seen) >= limit:
+            return old
+    return None

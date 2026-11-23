@@ -33,13 +33,14 @@ class GuardrailResult:
 
 
 def _clean(text: str) -> str:
-    """Remove control and format characters. Keep one space between words."""
+    """Remove control and format characters. Keep line breaks and one space between words."""
     kept = "".join(
-        " " if ch.isspace() else ch
-        for ch in text
-        if ch.isspace() or unicodedata.category(ch) not in ("Cc", "Cf")
+        ch
+        for ch in text.replace("\r\n", "\n")
+        if ch in "\n\t " or unicodedata.category(ch) not in ("Cc", "Cf", "Zl", "Zp")
     )
-    return re.sub(r"\s+", " ", kept).strip()
+    lines = [re.sub(r"[ \t]+", " ", line).strip() for line in kept.split("\n")]
+    return re.sub(r"\n{3,}", "\n\n", "\n".join(lines)).strip()
 
 
 def injection_reasons(text: str) -> list[str]:

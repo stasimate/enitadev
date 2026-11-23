@@ -37,6 +37,7 @@ class Settings(BaseSettings):
     qdrant_url: str | None = None  # empty: an in-memory Qdrant in the MCP server process
     rag_top_k: int = 4
     explain_timeout_s: float = 45.0
+    grade_timeout_s: float = 30.0
 
     # Provider keys use the standard names, without the ENITA_ prefix.
     openai_api_key: SecretStr | None = Field(None, validation_alias="OPENAI_API_KEY")

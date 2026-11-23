@@ -9,9 +9,17 @@ from fastapi import APIRouter, Depends, HTTPException
 from enita.agent.clients import ProviderConfigError
 from enita.agent.pipeline import GenerationError
 from enita.api.topics import get_content
-from enita.models import AnswerRequest, Exercise, ExerciseRequest, ExplainResponse, Feedback
+from enita.models import (
+    AnswerRequest,
+    AttemptFeedback,
+    Exercise,
+    ExerciseRequest,
+    ExplainResponse,
+    Solution,
+)
 from enita.practice.explain import ExplainService
 from enita.practice.service import (
+    ExerciseClosed,
     ExerciseNotFound,
     GenerationTimeout,
     PracticeService,
@@ -67,9 +75,32 @@ async def create_exercise(req: ExerciseRequest, practice: Practice) -> Exercise:
 
 
 @router.post("/{exercise_id}/answer")
-def answer_exercise(exercise_id: str, req: AnswerRequest, practice: Practice) -> Feedback:
+async def answer_exercise(
+    exercise_id: str, req: AnswerRequest, practice: Practice
+) -> AttemptFeedback:
     try:
-        return practice.answer(exercise_id, req.answer)
+        return await practice.answer(exercise_id, req.answer)
+    except ExerciseNotFound:
+        raise HTTPException(404, f"Exercise '{exercise_id}' not found") from None
+    except ExerciseClosed:
+        raise HTTPException(409, "The exercise is closed. Ask for a new exercise.") from None
+    except GenerationTimeout:
+        raise HTTPException(504, "The tutor took too much time. Try again.") from None
+    except (ProviderConfigError, ProviderCallError) as exc:
+        log.error("Grading failed: %s", exc)
+        raise HTTPException(
+            503, "The LLM provider refused the request. Check the API key."
+        ) from None
+    except GenerationError as exc:
+        log.warning("Grading rejected: %s", exc)
+        raise HTTPException(502, "The tutor did not make a valid correction.") from None
+
+
+@router.post("/{exercise_id}/solution")
+def show_solution(exercise_id: str, practice: Practice) -> Solution:
+    """Show the model answer and close the exercise."""
+    try:
+        return practice.solution(exercise_id)
     except ExerciseNotFound:
         raise HTTPException(404, f"Exercise '{exercise_id}' not found") from None
 

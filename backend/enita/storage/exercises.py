@@ -20,4 +20,5 @@ class StoredExercise:
             instruction=self.draft.instruction,
             prompt=self.draft.prompt,
             options=self.draft.options,
+            context=self.draft.context,
         )

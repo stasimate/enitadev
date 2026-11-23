@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from enita.agent.formats import completed_sentence
-from enita.models import ExerciseDraft, Feedback, LearnerProfile, TopicProgress
+from enita.models import ExerciseDraft, LearnerProfile, TopicMemory, TopicProgress
 from enita.storage.exercises import StoredExercise
 
 SCHEMA = """
@@ -19,7 +19,8 @@ CREATE TABLE IF NOT EXISTS exercises (
     topic_id TEXT NOT NULL,
     draft TEXT NOT NULL,
     created_at TEXT NOT NULL,
-    served INTEGER NOT NULL DEFAULT 1
+    served INTEGER NOT NULL DEFAULT 1,
+    closed INTEGER NOT NULL DEFAULT 0
 );
 CREATE TABLE IF NOT EXISTS attempts (
     id TEXT PRIMARY KEY,
@@ -30,7 +31,14 @@ CREATE TABLE IF NOT EXISTS attempts (
     score REAL NOT NULL,
     rule_ref TEXT NOT NULL,
     flagged INTEGER NOT NULL DEFAULT 0,
-    created_at TEXT NOT NULL
+    created_at TEXT NOT NULL,
+    notes TEXT NOT NULL DEFAULT '[]',
+    corrected TEXT
+);
+CREATE TABLE IF NOT EXISTS topic_memory (
+    topic_id TEXT PRIMARY KEY,
+    data TEXT NOT NULL,
+    updated_at TEXT NOT NULL
 );
 CREATE TABLE IF NOT EXISTS audit (
     id TEXT PRIMARY KEY,
@@ -55,6 +63,15 @@ def streak(active_days: list[str], today: date) -> int:
     return count
 
 
+def load_draft(raw: str) -> ExerciseDraft:
+    """Load a stored draft. Older versions saved drafts without some of the newer fields."""
+    data = json.loads(raw)
+    data.setdefault("context", "")
+    data.setdefault("criteria", [])
+    data.setdefault("correction", "")
+    return ExerciseDraft.model_validate(data)
+
+
 def _now() -> str:
     return datetime.now(UTC).isoformat(timespec="seconds")
 
@@ -65,10 +82,19 @@ class Database:
         path.parent.mkdir(parents=True, exist_ok=True)
         with self._conn() as c:
             c.executescript(SCHEMA)
-            # Migration for databases made before the exercise pool.
-            cols = {r["name"] for r in c.execute("PRAGMA table_info(exercises)")}
-            if "served" not in cols:
-                c.execute("ALTER TABLE exercises ADD COLUMN served INTEGER NOT NULL DEFAULT 1")
+            # Migrations for databases made by older versions.
+            migrations = {
+                "exercises": {
+                    "served": "INTEGER NOT NULL DEFAULT 1",
+                    "closed": "INTEGER NOT NULL DEFAULT 0",
+                },
+                "attempts": {"notes": "TEXT NOT NULL DEFAULT '[]'", "corrected": "TEXT"},
+            }
+            for table, columns in migrations.items():
+                existing = {r["name"] for r in c.execute(f"PRAGMA table_info({table})")}
+                for name, spec in columns.items():
+                    if name not in existing:
+                        c.execute(f"ALTER TABLE {table} ADD COLUMN {name} {spec}")
 
     @contextmanager
     def _conn(self) -> Iterator[sqlite3.Connection]:
@@ -104,7 +130,7 @@ class Database:
                 (topic_id,),
             ).fetchall()
             for row in rows:
-                draft = ExerciseDraft.model_validate_json(row["draft"])
+                draft = load_draft(row["draft"])
                 if exercise_type is None or draft.type == exercise_type:
                     c.execute("UPDATE exercises SET served = 1 WHERE id = ?", (row["id"],))
                     return StoredExercise(id=row["id"], topic_id=topic_id, draft=draft)
@@ -118,8 +144,17 @@ class Database:
                 "ORDER BY created_at DESC, rowid DESC LIMIT ?",
                 (topic_id, limit),
             ).fetchall()
-        drafts = [ExerciseDraft.model_validate_json(r["draft"]) for r in rows]
+        drafts = [load_draft(r["draft"]) for r in rows]
         return [f"{d.type}: {completed_sentence(d)}" for d in drafts]
+
+    def recent_prompts(self, topic_id: str, limit: int = 10) -> list[str]:
+        with self._conn() as c:
+            rows = c.execute(
+                "SELECT draft FROM exercises WHERE topic_id = ? "
+                "ORDER BY created_at DESC, rowid DESC LIMIT ?",
+                (topic_id, limit),
+            ).fetchall()
+        return [load_draft(r["draft"]).prompt for r in rows]
 
     def count_pooled(self, topic_id: str) -> int:
         with self._conn() as c:
@@ -133,29 +168,121 @@ class Database:
             row = c.execute("SELECT * FROM exercises WHERE id = ?", (exercise_id,)).fetchone()
         if row is None:
             return None
-        draft = ExerciseDraft.model_validate_json(row["draft"])
+        draft = load_draft(row["draft"])
         return StoredExercise(id=row["id"], topic_id=row["topic_id"], draft=draft)
 
     # --- Attempts and profile ----------------------------------------------------------
 
     def add_attempt(
-        self, item: StoredExercise, answer: str, feedback: Feedback, flagged: bool = False
+        self,
+        item: StoredExercise,
+        answer: str,
+        *,
+        verdict: str,
+        score: float,
+        rule_ref: str,
+        flagged: bool = False,
+        notes: list[str] | None = None,
+        corrected: str | None = None,
     ) -> None:
+        """Save one attempt. notes are the grader's notes (never raw text of the student)."""
         with self._conn() as c:
             c.execute(
-                "INSERT INTO attempts VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                "INSERT INTO attempts (id, exercise_id, topic_id, answer, verdict, score, "
+                "rule_ref, flagged, created_at, notes, corrected) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (
                     uuid.uuid4().hex,
                     item.id,
                     item.topic_id,
                     answer,
-                    feedback.verdict,
-                    feedback.score,
-                    feedback.rule_ref,
+                    verdict,
+                    score,
+                    rule_ref,
                     int(flagged),
                     _now(),
+                    json.dumps(notes or [], ensure_ascii=False),
+                    corrected,
                 ),
             )
+
+    def attempts_of(self, exercise_id: str) -> list[dict[str, Any]]:
+        with self._conn() as c:
+            rows = c.execute(
+                "SELECT answer, verdict, score, flagged, notes, corrected FROM attempts "
+                "WHERE exercise_id = ? ORDER BY created_at, rowid",
+                (exercise_id,),
+            ).fetchall()
+        return [{**dict(r), "notes": json.loads(r["notes"])} for r in rows]
+
+    def is_closed(self, exercise_id: str) -> bool:
+        with self._conn() as c:
+            row = c.execute("SELECT closed FROM exercises WHERE id = ?", (exercise_id,)).fetchone()
+        return bool(row and row["closed"])
+
+    def close_exercise(self, exercise_id: str) -> None:
+        with self._conn() as c:
+            c.execute("UPDATE exercises SET closed = 1 WHERE id = ?", (exercise_id,))
+
+    def clear_pool(self, topic_id: str) -> int:
+        """Delete the exercises prepared in advance (they do not know the new memory)."""
+        with self._conn() as c:
+            return c.execute(
+                "DELETE FROM exercises WHERE topic_id = ? AND served = 0", (topic_id,)
+            ).rowcount
+
+    def finished_exercises(self, topic_id: str, limit: int = 5) -> list[dict[str, Any]]:
+        """The latest closed exercises of a topic, with the verdict and the grader notes of
+        each attempt. Input of the memory agent: it contains no raw text of the student."""
+        with self._conn() as c:
+            rows = c.execute(
+                "SELECT id, draft FROM exercises WHERE topic_id = ? AND closed = 1 "
+                "ORDER BY created_at DESC, rowid DESC LIMIT ?",
+                (topic_id, limit),
+            ).fetchall()
+        out = []
+        for r in rows:
+            draft = load_draft(r["draft"])
+            attempts = [
+                {"verdict": a["verdict"], "notes": a["notes"]}
+                for a in self.attempts_of(r["id"])
+                if not a["flagged"]
+            ]
+            out.append(
+                {
+                    "type": draft.type,
+                    "context": draft.context,
+                    "task": draft.prompt,
+                    "rule_section": draft.rule_section,
+                    "attempts": attempts,
+                }
+            )
+        return out
+
+    def get_memory(self, topic_id: str) -> TopicMemory | None:
+        with self._conn() as c:
+            row = c.execute(
+                "SELECT data, updated_at FROM topic_memory WHERE topic_id = ?", (topic_id,)
+            ).fetchone()
+        if row is None:
+            return None
+        return TopicMemory.model_validate_json(row["data"]).model_copy(
+            update={"updated_at": row["updated_at"]}
+        )
+
+    def set_memory(self, topic_id: str, memory: TopicMemory) -> None:
+        with self._conn() as c:
+            c.execute(
+                "INSERT INTO topic_memory (topic_id, data, updated_at) VALUES (?, ?, ?) "
+                "ON CONFLICT(topic_id) DO UPDATE SET data = excluded.data, "
+                "updated_at = excluded.updated_at",
+                (topic_id, memory.model_dump_json(exclude={"updated_at"}), _now()),
+            )
+
+    def memories(self) -> dict[str, TopicMemory]:
+        with self._conn() as c:
+            ids = [r["topic_id"] for r in c.execute("SELECT topic_id FROM topic_memory")]
+        return {t: m for t in ids if (m := self.get_memory(t)) is not None}
 
     def profile(self, topic_id: str | None = None) -> LearnerProfile:
         """Aggregates only. Never the raw answers: they are untrusted text (see guardrails).
@@ -187,7 +314,11 @@ class Database:
                     ((date.today() - timedelta(days=29)).isoformat(),),
                 ).fetchall()
             ]
+        memories = self.memories()
+        if topic_id:
+            memories = {k: v for k, v in memories.items() if k == topic_id}
         return LearnerProfile(
+            memories=memories,
             streak_days=streak(days, date.today()),
             active_days=days,
             topics=[

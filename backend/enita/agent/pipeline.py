@@ -12,10 +12,10 @@ from datapizza.core.models import PipelineComponent
 from datapizza.pipeline import DagPipeline
 from pydantic import BaseModel
 
-from enita.agent.formats import completed_sentence, format_issues, normalize, prepare
+from enita.agent.formats import completed_sentence, format_issues, normalize, prepare, too_similar
 from enita.agent.prompts import VERIFIER_TASK, WRITER_FEEDBACK, WRITER_TASK
 from enita.guardrails.checks import output_issues
-from enita.models import MAX_ANSWER_LENGTH, ExerciseDraft, ExerciseType, Verification
+from enita.models import MAX_PROMPT_LENGTH, ExerciseDraft, ExerciseType, Verification
 
 
 class AgentLike(Protocol):
@@ -58,12 +58,18 @@ class WriterNode(PipelineComponent):
         return prepare(_structured(step, ExerciseDraft))
 
 
-def rule_issues(draft: ExerciseDraft, expected_type: ExerciseType | None = None) -> list[str]:
+def rule_issues(
+    draft: ExerciseDraft,
+    expected_type: ExerciseType | None = None,
+    recent_prompts: list[str] | None = None,
+) -> list[str]:
     """Fixed-rule checks. They are free and catch the format errors of the writer."""
     issues: list[str] = []
+    if repeated := too_similar(draft.prompt, recent_prompts or []):
+        issues.append(f"The exercise repeats a recent one ({repeated!r}). Continue the story.")
     if expected_type and draft.type != expected_type:
         issues.append(f"The exercise type must be {expected_type}.")
-    if len(draft.prompt) > MAX_ANSWER_LENGTH:
+    if len(draft.prompt) > MAX_PROMPT_LENGTH:
         issues.append("The prompt is too long.")
     if not draft.answers or any(not a.strip() for a in draft.answers):
         issues.append("There must be at least one non-empty answer.")
@@ -81,11 +87,15 @@ def fill_blank(draft: ExerciseDraft) -> str:
 
 
 class RulesNode(PipelineComponent):
-    def _run(self, draft: ExerciseDraft, expected_type: ExerciseType) -> list[str]:
-        return rule_issues(draft, expected_type)
+    def _run(
+        self, draft: ExerciseDraft, expected_type: ExerciseType, recent_prompts: list[str]
+    ) -> list[str]:
+        return rule_issues(draft, expected_type, recent_prompts)
 
-    async def _a_run(self, draft: ExerciseDraft, expected_type: ExerciseType) -> list[str]:
-        return rule_issues(draft, expected_type)
+    async def _a_run(
+        self, draft: ExerciseDraft, expected_type: ExerciseType, recent_prompts: list[str]
+    ) -> list[str]:
+        return rule_issues(draft, expected_type, recent_prompts)
 
 
 class VerifierNode(PipelineComponent):
@@ -170,6 +180,7 @@ async def generate_exercise(
     exercise_type: ExerciseType,
     card: str,
     max_attempts: int = 2,
+    recent_prompts: list[str] | None = None,
 ) -> GenerationResult:
     """Run the pipeline. If the decision rejects the draft, give the issues to the writer."""
     dag = build_pipeline(writer, verifier)
@@ -183,7 +194,7 @@ async def generate_exercise(
                     "exercise_type": exercise_type,
                     "feedback": feedback,
                 },
-                "rules": {"expected_type": exercise_type},
+                "rules": {"expected_type": exercise_type, "recent_prompts": recent_prompts or []},
                 "verifier": {"card": card},
             }
         )
