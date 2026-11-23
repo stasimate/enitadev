@@ -1,0 +1,38 @@
+# Development in Docker with hot reload. You do not need Python or Node on the host.
+#   docker compose -f compose.dev.yaml up   → frontend http://localhost:4200, API http://localhost:8000
+
+services:
+  backend-dev:
+    image: ghcr.io/astral-sh/uv:0.11-python3.12-bookworm-slim
+    working_dir: /app/backend
+    command: sh -c "uv sync && uv run uvicorn enita.main:app --host 0.0.0.0 --port 8000 --reload"
+    environment:
+      UV_PROJECT_ENVIRONMENT: /venv
+      UV_LINK_MODE: copy
+    env_file:
+      - path: .env
+        required: false
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app/backend
+      - ./content:/app/content
+      - backend-venv:/venv
+
+  frontend-dev:
+    image: node:24-alpine
+    working_dir: /app/frontend
+    command: sh -c "npm ci && npx ng serve --host 0.0.0.0 --port 4200 --poll 1000"
+    environment:
+      API_TARGET: http://backend-dev:8000
+    ports:
+      - "4200:4200"
+    volumes:
+      - ./frontend:/app/frontend
+      - frontend-node-modules:/app/frontend/node_modules
+    depends_on:
+      - backend-dev
+
+volumes:
+  backend-venv:
+  frontend-node-modules:

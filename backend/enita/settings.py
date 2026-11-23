@@ -23,6 +23,8 @@ class Settings(BaseSettings):
     llm_timeout_s: float = 20.0
     db_path: Path = BACKEND_DIR / "data" / "enita.db"
     content_dir: Path = BACKEND_DIR.parent / "content" / "en" / "topics"
+    # The Angular build. When the directory exists, FastAPI serves it at "/".
+    static_dir: Path = BACKEND_DIR.parent / "frontend" / "dist" / "enita" / "browser"
 
 
 @lru_cache

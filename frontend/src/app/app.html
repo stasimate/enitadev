@@ -1,7 +1,11 @@
 <div class="flex min-h-dvh flex-col">
-  <header class="flex items-center justify-between border-b-2 border-ink px-4 py-3">
+  <header class="flex flex-wrap items-center justify-between gap-3 border-b-2 border-ink px-4 py-3">
     <h1 class="text-xl font-bold tracking-tight">ENITA<span class="cursor-blink text-accent">_</span></h1>
-    <p class="text-sm uppercase">[ EN · A1 ]</p>
+    <en-topic-select
+      [groups]="theory.groups()"
+      [selected]="theory.selectedId()"
+      (selectedChange)="$event && theory.select($event)"
+    />
   </header>
 
   <nav class="flex border-b-2 border-ink lg:hidden" aria-label="Sezioni">
@@ -17,20 +21,18 @@
     <section aria-labelledby="theory-title" class="p-6 lg:block lg:border-r-2 lg:border-ink"
       [class.hidden]="activePane() !== 'theory'">
       <h2 id="theory-title" class="mb-4 text-sm font-bold uppercase">// Teoria</h2>
-      <div class="border-2 border-ink p-4 shadow-brutal">
-        <p>Scegli un argomento per vedere la regola.</p>
-      </div>
+      @if (theory.card.hasValue()) {
+        <en-theory-card [card]="theory.card.value()" [highlighted]="theory.highlighted()" />
+      } @else if (theory.card.error() || theory.topics.error()) {
+        <p role="alert" class="border-2 border-err p-4 text-err">[ ERRORE ] Il backend non risponde.</p>
+      } @else {
+        <p aria-live="polite">Caricamento<span class="cursor-blink">_</span></p>
+      }
     </section>
 
     <section aria-labelledby="practice-title" class="p-6 lg:block" [class.hidden]="activePane() !== 'practice'">
       <h2 id="practice-title" class="mb-4 text-sm font-bold uppercase">// Pratica</h2>
-      <div class="border-2 border-ink p-4 shadow-brutal">
-        <p class="mb-4">Gli esercizi corretti dall'IA appariranno qui.</p>
-        <button type="button" disabled
-          class="border-2 border-ink bg-accent px-4 py-2 font-bold uppercase shadow-brutal-sm disabled:opacity-60">
-          [ Nuovo esercizio ]
-        </button>
-      </div>
+      <en-practice-panel [topicTitle]="theory.card.hasValue() ? theory.card.value().title : null" />
     </section>
   </main>
 </div>

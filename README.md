@@ -11,9 +11,37 @@ Stack: **datapizza-ai** (Agent, tools, Memory, ContextTracing, MCP) Â· FastAPI Â
 - Functional analysis: [`docs/FUNCTIONAL_ANALYSIS.md`](docs/FUNCTIONAL_ANALYSIS.md)
 - Rules for AI coding agents: [`AGENTS.md`](AGENTS.md)
 
-> Status: **M0, scaffold**. The application starts and shows the split screen.
-> The agent, the exercises and the evals come with milestones M1 to M5
+> Status: **M1 complete**. The application shows the theory cards in the split screen.
+> The agent, the exercises and the evals come with milestones M2 to M5
 > (refer to Â§8 of the functional analysis).
+
+## Quick start with Docker
+
+Docker is the recommended runtime. On macOS, you can use [colima](https://github.com/abiosoft/colima).
+
+1. Start the Docker runtime (colima only):
+
+   ```bash
+   colima start
+   ```
+
+2. Copy the example configuration:
+
+   ```bash
+   cp .env.example .env
+   ```
+
+3. Build the image and start the application. Then open http://localhost:8000.
+
+   ```bash
+   docker compose up --build
+   ```
+
+For development in Docker with hot reload, start the dev stack. Then open http://localhost:4200.
+
+```bash
+docker compose -f compose.dev.yaml up
+```
 
 ## Requirements
 
@@ -32,7 +60,7 @@ Stack: **datapizza-ai** (Agent, tools, Memory, ContextTracing, MCP) Â· FastAPI Â
 
 2. In `.env`, set `ENITA_PROVIDER`, `ENITA_MODEL` and the API key of the provider.
 
-## Start for development
+## Start for development without Docker
 
 1. Start the backend (http://localhost:8000):
 

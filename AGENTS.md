@@ -59,6 +59,10 @@ enitadev/
 | Build the frontend | `frontend/` | `npm run build` |
 | Run the frontend tests | `frontend/` | `npm test` |
 | Start all (one image: FastAPI serves the API and the Angular build) | root | `docker compose up --build` → http://localhost:8000 |
+| Start development in Docker (hot reload) | root | `docker compose -f compose.dev.yaml up` → http://localhost:4200 |
+
+Docker is the default runtime. The host has Docker through **colima** (`colima start`).
+You can run all the parts in Docker. You do not need Python or Node on the host.
 
 Before you say that a task is complete, run the tests and the build for the part that you
 changed. If the part does not operate, the task is not complete. (The brief says: "il
@@ -145,10 +149,18 @@ Obey `frontend/AGENTS.md` (Angular 22 best practices: standalone components, sig
 by default, Signal Forms, native control flow, `inject()`, WCAG AA). Also obey these rules:
 
 - Use the Angular CLI generators (`npx ng generate component …`).
-- Feature structure in `src/app/`: `core/` (API service, models), `features/theory/`,
-  `features/practice/`, `shared/ui/` (brutalist primitives: button, panel, badge).
-- Send all HTTP requests through `core/api.service.ts`. The types in `core/models.ts` are
-  the same as the backend Pydantic models.
+- Use this structure in `src/app/`. Do not add other top-level folders.
+  - `core/`: singletons for all the application. `api.ts` (the only HTTP access) and
+    `models.ts` (types that are the same as the backend Pydantic models).
+  - `features/<feature>/`: one folder for each feature (`theory/`, `practice/`). A feature
+    has one store (`<feature>-store.ts`, signals) and its components.
+  - `shared/`: reusable parts with no feature logic: `pipes/`, `ui/` (brutalist primitives:
+    button, panel, badge).
+- **One component has one responsibility.** Examples: `TopicSelect` only selects a topic.
+  `TheoryCard` only shows a card. `App` only arranges the layout.
+  - A component receives data with `input()` and sends events with `output()` / `model()`.
+  - A component does not call HTTP. The feature store calls `core/api.ts`.
+  - If a component does two things, divide it into two components.
 - **Design system: brutalist · minimal · retro.**
   - Font: JetBrains Mono only (`index.html` loads it). The Tailwind `@theme` sets it as
     `--font-mono`.
@@ -166,7 +178,7 @@ by default, Signal Forms, native control flow, `inject()`, WCAG AA). Also obey t
 - Work in small increments that operate. Follow the milestones in the specification (§8).
 - Commit messages: imperative mood, with the area as a prefix: `backend: …`, `frontend: …`,
   `content: …`, `docs: …`, `evals: …`, `infra: …`.
-- When you add or change an endpoint, update §5.3 of the specification and `core/models.ts`.
+- When you add or change an endpoint, update §5.3 of the specification and `frontend/src/app/core/models.ts`.
 - When you make an architecture decision, add a row to §9 "Decisions" of the specification.
 - Ask the project owner before you add an external service, change the architecture (for
   example, to multi-agent) or delete content cards.

@@ -13,6 +13,33 @@
   --radius-*: initial;
   --shadow-brutal: 4px 4px 0 var(--color-ink);
   --shadow-brutal-sm: 2px 2px 0 var(--color-ink);
+  --shadow-brutal-accent: 4px 4px 0 var(--color-accent);
+}
+
+/* Rendered markdown of the theory cards. */
+@layer components {
+  .md {
+    @apply flex flex-col gap-2 leading-relaxed;
+  }
+  .md ul {
+    @apply list-['>_'] pl-6;
+  }
+  .md code {
+    @apply bg-ink/10 px-1;
+  }
+  .md del {
+    @apply text-err;
+  }
+  .md table {
+    @apply w-full border-collapse border-2 border-ink text-sm;
+  }
+  .md th,
+  .md td {
+    @apply border border-ink px-2 py-1 text-left;
+  }
+  .md th {
+    @apply bg-ink text-paper uppercase;
+  }
 }
 
 @layer base {
@@ -30,6 +57,8 @@
   :root {
     --color-paper: #111111;
     --color-ink: #f4f1ea;
+    --color-ok: #4cc472;
+    --color-err: #ff6b7d;
   }
 }
 

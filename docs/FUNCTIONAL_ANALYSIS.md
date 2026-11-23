@@ -199,7 +199,7 @@ Each milestone must end with a part that operates.
 | # | Milestone | Covers | Estimate |
 |---|---|---|---|
 | M0 | Repository, analysis, AGENTS.md, frontend and backend scaffold | — | done |
-| M1 | Theory cards (6 topics, A1 to B1), topics API, split-screen UI with the theory | RF-01..03 | 1 h |
+| M1 | Theory cards (6 topics, A1 to B1), topics API, split-screen UI with the theory, Docker image and Docker dev stack | RF-01..03 | done |
 | M2 | Tutor agent for more than one provider, MCP server with `get_theory_card`, generation and closed exercises | RF-10..12, RF-30, S12 | 1.5 h |
 | M3 | SQLite for attempts and profile, input and output guardrails, ContextTracing | RF-15, RF-20, S13 | 1 h |
 | M4 | Eval (8 tasks) and timeout on the AI correction | S14 | 1 h |
@@ -220,6 +220,8 @@ Each milestone must end with a part that operates.
 | Documentation | English, ASD-STE100 | Requirement of the project owner. The chat stays in Italian. |
 | Default provider | OpenAI `gpt-4o-mini` | Decision of the project owner. The other providers stay available through `ENITA_PROVIDER`. |
 | Deployment | One Docker image. FastAPI serves the API and the Angular build. | One container is simpler for the demo. There is no CORS configuration in production. |
+| Development runtime | Docker (colima on the host). `compose.dev.yaml` starts the backend and the frontend with hot reload. | Decision of the project owner. The host does not need Python or Node. |
+| Frontend structure | `core/`, `features/`, `shared/`. One component has one responsibility. A feature store keeps the state. | Decision of the project owner. Small components are easy to test and to change. |
 
 ## 10. Open questions
 
