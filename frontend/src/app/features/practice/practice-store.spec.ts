@@ -69,11 +69,18 @@ describe('PracticeStore', () => {
     expect(theory.highlighted()).toBeNull();
   });
 
-  it('maps a 502 to the Italian message', () => {
+  it('lets the student retry only a temporary error', () => {
     store.newExercise('past-simple');
-    http.expectOne('/api/exercises').flush({ detail: 'x' }, { status: 502, statusText: 'Bad Gateway' });
+    http.expectOne('/api/exercises').flush({ detail: 'x' }, { status: 504, statusText: 'Timeout' });
     expect(store.status()).toBe('error');
-    expect(store.error()).toBe('Il Tutor non è riuscito a creare un esercizio. Riprova.');
+    expect(store.error()).toBe('Il Tutor ci mette troppo tempo.');
+    expect(store.retryable()).toBe(true);
+
+    store.retry();
+    const again = http.expectOne('/api/exercises');
+    expect(again.request.body.topic_id).toBe('past-simple');
+    again.flush({ detail: 'key' }, { status: 503, statusText: 'Unavailable' });
+    expect(store.retryable()).toBe(false);
   });
 
   it('shows the 422 detail and lets the student answer again', () => {
