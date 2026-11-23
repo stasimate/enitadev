@@ -34,7 +34,9 @@ enitadev/
 │   │   ├── mcp_server/       ← MCP server with the Enita tools (stdio)
 │   │   ├── guardrails/       ← input and output validation
 │   │   ├── content/          ← loader and parser for the markdown cards
-│   │   ├── storage/          ← SQLite repository (attempts, profile)
+│   │   ├── storage/          ← SQLite (exercises, attempts, audit) in db.py
+│   │   ├── practice/         ← use cases: make an exercise, check an answer
+│   │   ├── audit.py          ← ContextTracing spans → audit record
 │   │   ├── models.py         ← Pydantic schemas for the API, the agent and MCP
 │   │   ├── settings.py       ← pydantic-settings, reads .env
 │   │   └── main.py           ← FastAPI app factory
@@ -133,12 +135,14 @@ Do not write a test for code that the framework already tests.
 - Put each agent run in `ContextTracing` (audit trail, RNF-04).
 - The LLM correction tool has a **timeout** (`ENITA_LLM_TIMEOUT_S`, default 20 s) and a
   controlled fallback (RNF-06).
-- Persistence: SQLite at `backend/data/enita.db` (git ignores it). Use only `enita.storage`
+- Persistence: SQLite at `backend/data/enita.db` (git ignores it). Use only `enita.storage.db.Database`
   to access it.
 - Style: type hints on all code, small pure functions, no `ruff` errors, line length 100.
 
 ## Security rules (mandatory)
 
+- Never put raw student answers in an LLM prompt or in an MCP tool result. The learner
+  profile contains aggregates only.
 - The student answer is **not trusted input**. Before a prompt contains it, call
   `guardrails.validate_answer()`. This function limits the length to 300, removes control
   characters and flags injection patterns. In the prompt, put the answer in a block for data.

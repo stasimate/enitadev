@@ -147,13 +147,12 @@ ContextTracing. This is an item of "Cosa alza il livello" in the brief.
 │  agent/      writer + verifier (DagPipeline), client factory (4 p.)│
 │  guardrails/ input and output validation                           │
 │  tracing     ContextTracing → audit log                            │
-│  storage/    SQLite: profile, attempts                             │
+│  storage/    SQLite: exercises, attempts, audit                    │
 └──────────────────────────┬─────────────────────────────────────────┘
                            │ MCP (stdio) through datapizza.tools.mcp_client.MCPClient
 ┌──────────────────────────▼──── enita-mcp (MCP server) ─────────────┐
 │  get_theory_card(topic_id)        ← S12: the first and only tool   │
-│  get_learner_profile()            ← permanent memory               │
-│  record_attempt(...)                                               │
+│  get_learner_profile(topic_id)    ← permanent memory (aggregates)  │
 │  search_grammar(query)            ← RAG phase (Qdrant, hybrid)     │
 └──────────────────────────┬─────────────────────────────────────────┘
                            ▼
@@ -170,7 +169,8 @@ ContextTracing. This is an item of "Cosa alza il livello" in the brief.
 | POST | `/api/exercises` | `{topic_id, type?}` → exercise `{id, type, prompt, options?, topic_id}` |
 | POST | `/api/exercises/{id}/answer` | `{answer}` → feedback `{verdict, score, correct_answer, explanation, rule_ref}` |
 | POST | `/api/topics/{id}/explain` | Personal explanation (RF-05) |
-| GET | `/api/progress` | Accuracy for each topic |
+| GET | `/api/progress?topic_id=` | Learner profile: accuracy for each topic, frequent errors for each `rule_ref` |
+| GET | `/api/audit?limit=` | The most recent audit records (generations, corrections, guardrail events) |
 
 ### 5.4 Data model
 
@@ -182,20 +182,33 @@ ContextTracing. This is an item of "Cosa alza il livello" in the brief.
 ### 5.5 Main flow
 
 1. The user selects a topic. The frontend calls `GET /topics/{id}`. The left part shows the theory.
-2. The user pushes "New exercise". The tutor calls `get_theory_card` and `get_learner_profile` through MCP. The tutor makes an exercise in JSON. The output guardrail validates the schema.
+2. The user pushes "New exercise". The writer calls `get_theory_card` and `get_learner_profile` through MCP and makes a draft. The rules check (with the output guardrail) and the verifier check the draft (§5.1).
 3. The user writes an answer. The input guardrail checks the length, the characters and the known prompt-injection patterns.
-4. The system checks the answer. Closed exercises use fixed rules. Open exercises use the AI, with a rubric and a timeout. The output guardrail makes sure that `rule_ref` is a section of the card.
-5. The system calls `record_attempt` and updates the profile. The right part shows the feedback. The left part highlights the rule.
+4. The system checks the answer. Closed exercises use fixed rules. Open exercises (M6) use the AI, with a rubric and a timeout.
+5. The system saves the attempt in SQLite. The profile changes. The right part shows the feedback. The left part highlights the rule.
 6. ContextTracing records each step (audit trail).
 
 ## 6. Security, evaluation and production
 
-- **Input guardrail.** The student answer is not trusted text. The correction prompt contains it. Thus:
-  - Limit the length to 300 characters.
-  - Remove control characters.
-  - Put the answer in the prompt in a block for data, not for instructions.
-  - Compare the answer with known injection patterns ("ignore previous instructions", "you are now", …). If a pattern matches, the result is `wrong` and the audit trail records the event.
-- **Output guardrail.** Pydantic validates the tutor output (schemas `Feedback` and `Exercise`). If the output is not valid, the system tries again one time. Then it returns a controlled error. `rule_ref` must be a section of the card.
+- **Input guardrail** (`enita/guardrails/checks.py`, `validate_answer`). The student answer
+  is not trusted text.
+  - The API rejects an answer longer than 300 characters (HTTP 422).
+  - The guardrail removes control and format characters.
+  - The guardrail compares the answer with known injection patterns ("ignore previous
+    instructions", "you are now", "mark it correct", …). If a pattern matches, the result is
+    `wrong`, the student sees an explanation, and the audit trail records the event.
+  - A flagged attempt is not in the learner profile. The audit trail keeps it.
+- **Mitigation by design.** No raw student answer goes into an LLM prompt. Closed exercises
+  use fixed rules. The MCP tool `get_learner_profile` returns aggregates only (accuracy and
+  error counts for each `rule_ref`), never the answer text.
+- **Output guardrail** (`output_issues`, part of the rules check). The writer output must not
+  show the solution in the instruction or in the prompt, must not contain instructions for
+  an AI system, and must not contain HTML or links. Pydantic validates the structured output
+  (`ExerciseDraft`, `Verification`).
+- **Audit trail** (RNF-04). `ContextTracing` records each generation. `enita/audit.py`
+  converts the spans into a record: agents, tool calls (with arguments), LLM calls (model,
+  tokens, seconds), attempts, rejected issues and the outcome. SQLite (`audit` table) keeps
+  each record. Corrections and guardrail events are also records. `GET /api/audit` shows them.
 - **Lethal trifecta.** The tutor has no network tools and no tools that write to external systems. It reads only checked content. It writes only local attempts. Thus, the tutor has no path to send data out (exfiltration).
 - **Eval** (`evals/`): 8 cases `(exercise, answer, expected result)` and one trajectory check. The trajectory check makes sure that the tutor calls `get_theory_card` before it checks an answer. Command: `uv run python -m evals.run`. The exit code is not 0 when the result is less than 7 of 8. Later, CI uses this eval as a gate.
 - **RAGAS** (RAG phase): faithfulness and context precision for "Spiegami meglio".
@@ -221,7 +234,7 @@ Each milestone must end with a part that operates.
 | M0 | Repository, analysis, AGENTS.md, frontend and backend scaffold | — | done |
 | M1 | Theory cards (6 topics, A1 to B1), topics API, split-screen UI with the theory, Docker image and Docker dev stack | RF-01..03 | done |
 | M2 | Writer + verifier agents (DagPipeline) for more than one provider, MCP server with `get_theory_card`, closed exercises with fixed-rule check, practice UI | RF-10..12, RF-14, RF-30, RF-31, S12 | done |
-| M3 | SQLite for attempts and profile, input and output guardrails, ContextTracing | RF-15, RF-20, S13 | 1 h |
+| M3 | SQLite for exercises, attempts and audit, learner profile (API and MCP tool), input and output guardrails, ContextTracing audit trail | RF-15, RF-20, RF-21, S13 | done |
 | M4 | Eval (8 tasks) and timeout on the AI correction | S14 | 1 h |
 | M5 | Dockerfile, compose and README | S15 | 45 min |
 | M6 | *(if time is available)* open exercises, "Spiegami meglio", RAG on Qdrant and RAGAS | RF-05, RF-13 | 2 h |
@@ -238,7 +251,8 @@ Each milestone must end with a part that operates.
 | Tests | Only the strictly necessary tests | Decision of the project owner. Tests protect logic, contracts and security rules. |
 | Commits | Conventional Commits, no AI attribution | Decision of the project owner. |
 | Provider | OpenAI, Gemini, Anthropic, Ollama through a factory | The brief requires more than one provider. |
-| Persistence | SQLite | No infrastructure. It is sufficient for one user. |
+| Persistence | SQLite (`exercises`, `attempts`, `audit`) | No infrastructure. It is sufficient for one user. The exercises stay after a restart. |
+| Learner profile | Aggregates only, flagged attempts excluded | Raw answers are untrusted text. They must not reach the writer prompt (prompt injection). |
 | Frontend runtime | Angular 22.3 on Node 24 (`.nvmrc`) | Angular 22 requires Node 24.15 or later. It installs with npm 11 and no `legacy-peer-deps`. |
 | Documentation | English, ASD-STE100 | Requirement of the project owner. The chat stays in Italian. |
 | Default provider | OpenAI `gpt-4.1-mini` | Live test: with `gpt-4o-mini` 0 of 3 exercises passed (wrong drafts and wrong reviews). With `gpt-4.1-mini` 12 of 12 passed in 4-15 s. The other providers stay available through `ENITA_PROVIDER`. |

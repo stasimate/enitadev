@@ -11,8 +11,8 @@ Stack: **datapizza-ai** (Agent, tools, Memory, ContextTracing, MCP) · FastAPI �
 - Functional analysis: [`docs/FUNCTIONAL_ANALYSIS.md`](docs/FUNCTIONAL_ANALYSIS.md)
 - Rules for AI coding agents: [`AGENTS.md`](AGENTS.md)
 
-> Status: **M2 complete**. The theory cards and the AI exercises operate in the split screen.
-> Guardrails, audit trail, evals and the final Docker checks come with milestones M3 to M5
+> Status: **M3 complete**. Theory cards, AI exercises, learner profile, guardrails and the
+> audit trail operate. The evals and the final Docker checks come with milestones M4 and M5
 > (refer to §8 of the functional analysis).
 
 ## Quick start with Docker
