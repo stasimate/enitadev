@@ -36,7 +36,7 @@ enitadev/
 │   │   └── main.py           ← FastAPI app factory
 │   ├── evals/                ← eval set + runner (pass/fail exit code)
 │   └── tests/
-└── frontend/                 ← Angular 21 + Tailwind v4 (has its own AGENTS.md)
+└── frontend/                 ← Angular 22 + Tailwind v4 (has its own AGENTS.md)
 ```
 
 ## Commands
@@ -49,7 +49,8 @@ enitadev/
 | Backend tests | `backend/`: `uv run pytest` |
 | Lint | `backend/`: `uv run ruff check .` |
 | Evals (gate) | `backend/`: `uv run python -m evals.run` (exit ≠ 0 if score < 7/8) |
-| Frontend install | `frontend/`: `npm install` (`.npmrc` sets `legacy-peer-deps`; keep it) |
+| Node version | root: `nvm use` (`.nvmrc` = 24; Angular 22 needs Node ≥ 24.15 or ≥ 22.22.3) |
+| Frontend install | `frontend/`: `npm ci` |
 | Frontend dev | `frontend/`: `npm start` → http://localhost:4200, proxies `/api` to :8000 |
 | Frontend build | `frontend/`: `npm run build` |
 | Frontend tests | `frontend/`: `npm test` |
@@ -115,8 +116,8 @@ doesn't run, it isn't done (brief: "il progetto si considera completato solo se 
 
 ## Frontend rules
 
-Follow `frontend/AGENTS.md` (Angular best practices: standalone, signals, OnPush, native
-control flow, `inject()`, reactive forms, WCAG AA). In addition:
+Follow `frontend/AGENTS.md` (Angular 22 best practices: standalone, signals, OnPush by default, Signal Forms, native
+control flow, `inject()`, WCAG AA). In addition:
 
 - Use the Angular CLI generators (`npx ng generate component …`).
 - Feature structure under `src/app/`: `core/` (api service, models), `features/theory/`,

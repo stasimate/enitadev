@@ -105,7 +105,7 @@ confrontata con la baseline single-agent su costo e step, è un extra di "Cosa a
 ### 5.2 Componenti
 
 ```
-┌──────────────── Frontend (Angular 21 + Tailwind v4) ───────────────┐
+┌──────────────── Frontend (Angular 22 + Tailwind v4) ───────────────┐
 │  TopBar: argomento · livello · provider                            │
 │  ┌──────── TheoryPane ────────┐  ┌──────── PracticePane ────────┐  │
 │  │ scheda markdown            │  │ esercizio · input · feedback │  │
