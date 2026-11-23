@@ -58,7 +58,7 @@ enitadev/
 | Start the frontend (development) | `frontend/` | `npm start` → http://localhost:4200. The proxy sends `/api` to port 8000. |
 | Build the frontend | `frontend/` | `npm run build` |
 | Run the frontend tests | `frontend/` | `npm test` |
-| Start all | root | `docker compose up --build` |
+| Start all (one image: FastAPI serves the API and the Angular build) | root | `docker compose up --build` → http://localhost:8000 |
 
 Before you say that a task is complete, run the tests and the build for the part that you
 changed. If the part does not operate, the task is not complete. (The brief says: "il

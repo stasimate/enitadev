@@ -93,7 +93,7 @@ Priority: **M** = must (minimum for delivery), **S** = should, **C** = could.
 | RNF-04 | `datapizza.tracing.ContextTracing` records an **audit trail** for each exercise and each correction. | Governance |
 | RNF-05 | An **eval** gives a pass or fail result: 8 correction and trajectory tasks. The pass limit is 7 of 8. | Reliability |
 | RNF-06 | The critical tool (AI correction) has a **timeout** of 20 s. When the time ends, the system uses the fixed-rule check, or it tells the user to try again. | S14 |
-| RNF-07 | A **Dockerfile** builds the application and starts it on the local computer. `docker compose up` starts the backend and the frontend. | Production / S15 |
+| RNF-07 | One **Dockerfile** builds one image and starts the application on the local computer. FastAPI serves the API and the Angular build. `docker compose up` starts the image. | Production / S15 |
 | RNF-08 | The README tells how to install and start the application. The project is complete only when it operates. | Production |
 | RNF-09 | The UI is accessible (WCAG AA: contrast, visible focus, ARIA). The style is brutalist and minimal, with a monospace font (§7). | — |
 | RNF-10 | The repository contains no secrets. The API keys are in `.env`. Git contains only `.env.example`. | Security |
@@ -179,7 +179,7 @@ possible later. Compare it with the one-agent baseline (cost and steps). This is
 - **Lethal trifecta.** The tutor has no network tools and no tools that write to external systems. It reads only checked content. It writes only local attempts. Thus, the tutor has no path to send data out (exfiltration).
 - **Eval** (`evals/`): 8 cases `(exercise, answer, expected result)` and one trajectory check. The trajectory check makes sure that the tutor calls `get_theory_card` before it checks an answer. Command: `uv run python -m evals.run`. The exit code is not 0 when the result is less than 7 of 8. Later, CI uses this eval as a gate.
 - **RAGAS** (RAG phase): faithfulness and context precision for "Spiegami meglio".
-- **Docker**: one image for the backend (uv) and one image for the frontend (Angular build served by nginx), plus `compose.yaml`.
+- **Docker**: one image with a multi-stage build. Stage 1 (Node 24) builds the Angular application. Stage 2 (Python 3.12, uv) installs the backend and copies the Angular build. FastAPI serves the API at `/api` and the static frontend at `/`. `compose.yaml` starts the image and reads `.env`.
 
 ## 7. UI guidelines
 
@@ -218,8 +218,9 @@ Each milestone must end with a part that operates.
 | Persistence | SQLite | No infrastructure. It is sufficient for one user. |
 | Frontend runtime | Angular 22.3 on Node 24 (`.nvmrc`) | Angular 22 requires Node 24.15 or later. It installs with npm 11 and no `legacy-peer-deps`. |
 | Documentation | English, ASD-STE100 | Requirement of the project owner. The chat stays in Italian. |
+| Default provider | OpenAI `gpt-4o-mini` | Decision of the project owner. The other providers stay available through `ENITA_PROVIDER`. |
+| Deployment | One Docker image. FastAPI serves the API and the Angular build. | One container is simpler for the demo. There is no CORS configuration in production. |
 
 ## 10. Open questions
 
-- The default provider for the demo. Recommendation: OpenAI `gpt-4o-mini` or Gemini Flash. Ollama is the fallback. Ollama is not installed on this computer now.
-- One Docker image (FastAPI also serves the frontend) can make the demo simpler. Do you want this option?
+There are no open questions now.
