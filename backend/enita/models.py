@@ -4,7 +4,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-Level = Literal["A1", "A2", "B1"]
+Level = Literal["A1", "A2", "B1", "B2"]
 SectionSlug = Literal["regola", "esempi", "attenzione", "riepilogo"]
 ExerciseType = Literal["fill_blank", "multiple_choice", "reorder", "transform", "find_error"]
 Verdict = Literal["correct", "partial", "wrong"]
@@ -92,6 +92,17 @@ class Verification(BaseModel):
     issues: list[str] = Field(description="The problems found. Empty when approved.")
 
 
+class Explanation(BaseModel):
+    """The output of the explainer agent ("Spiegami meglio")."""
+
+    explanation: str = Field(
+        description="Markdown in Italian, 80-180 words, with English examples in backticks."
+    )
+    sources: list[str] = Field(
+        description="The rule_ref values (topic#section) of the passages used. At least one."
+    )
+
+
 # --- API models ------------------------------------------------------------------------
 
 
@@ -137,3 +148,17 @@ class LearnerProfile(BaseModel):
     frequent_errors: dict[str, int] = Field(
         default_factory=dict, description="rule_ref → number of wrong answers"
     )
+    streak_days: int = 0
+    active_days: list[str] = Field(
+        default_factory=list, description="ISO dates of the last 30 days with an attempt"
+    )
+
+
+class Source(BaseModel):
+    rule_ref: str
+    title: str
+
+
+class ExplainResponse(BaseModel):
+    explanation: str
+    sources: list[Source]

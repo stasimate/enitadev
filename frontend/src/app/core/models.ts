@@ -1,8 +1,8 @@
 /** Types that mirror the backend Pydantic models (backend/enita/models.py). */
 
-export type Level = 'A1' | 'A2' | 'B1';
+export type Level = 'A1' | 'A2' | 'B1' | 'B2';
 
-export const LEVELS: readonly Level[] = ['A1', 'A2', 'B1'];
+export const LEVELS: readonly Level[] = ['A1', 'A2', 'B1', 'B2'];
 
 export interface TopicSummary {
   id: string;
@@ -51,4 +51,32 @@ export interface Feedback {
   explanation: string;
   /** Format: `<topic_id>#<section-slug>`. */
   rule_ref: string;
+}
+
+export interface ExplainSource {
+  /** Format: `<topic_id>#<section-slug>`. */
+  rule_ref: string;
+  title: string;
+}
+
+/** A new explanation of a topic that the Tutor writes (markdown, Italian). */
+export interface Explanation {
+  explanation: string;
+  sources: ExplainSource[];
+}
+
+export interface TopicStats {
+  topic_id: string;
+  attempts: number;
+  correct: number;
+  accuracy: number;
+}
+
+export interface LearnerProfile {
+  topics: TopicStats[];
+  /** The number of wrong answers for each `rule_ref`. */
+  frequent_errors: Record<string, number>;
+  streak_days: number;
+  /** ISO dates (YYYY-MM-DD) of the last 30 days with at least one attempt. */
+  active_days: string[];
 }

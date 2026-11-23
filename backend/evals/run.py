@@ -7,6 +7,8 @@ Gates:
 - review: the decision (rules check + verifier + option check) is correct in >= 10 of 11 cases.
 - trajectory: 3 of 3 generations are approved, the writer calls get_theory_card first and
   then get_learner_profile, and each generation is in the time budget.
+- rag: 4 real "Spiegami meglio" explanations, no errors, mean RAGAS faithfulness and context
+  precision above the gates.
 """
 
 import asyncio
@@ -26,8 +28,10 @@ from enita.audit import summarize_spans
 from enita.content.loader import ContentRepository
 from enita.practice.service import default_agents, mcp_tools
 from enita.settings import get_settings
-from evals.cases import REVIEW_CASES, TRAJECTORY_TOPICS
+from evals.cases import RAG_TOPICS, REVIEW_CASES, TRAJECTORY_TOPICS
 
+RAG_MIN_FAITHFULNESS = 0.85  # measured 0.954 (2026-11-23)
+RAG_MIN_CONTEXT_PRECISION = 0.70  # measured 0.819 (2026-11-23)
 REVIEW_MIN_PASS = 10  # of 11 cases: one known edge case may change between runs
 TIME_BUDGET_S = 30.0
 REPORT = Path(__file__).parent / "last_report.json"
@@ -123,13 +127,108 @@ async def trajectory_eval() -> dict[str, Any]:
     }
 
 
+async def rag_eval() -> dict[str, Any]:
+    """RAGAS on "Spiegami meglio": faithfulness and context precision of real explanations."""
+    import warnings
+
+    from langchain_openai import ChatOpenAI
+    from ragas import EvaluationDataset, SingleTurnSample, evaluate
+    from ragas.llms import LangchainLLMWrapper
+
+    from enita.practice.explain import ExplainService
+    from enita.rag.index import build_passages
+    from enita.storage.db import Database
+
+    warnings.filterwarnings("ignore", category=DeprecationWarning)
+    from ragas.metrics import Faithfulness, LLMContextPrecisionWithoutReference
+
+    base = get_settings()
+    eval_db = base.db_path.parent / "eval.db"  # same folder: the embedding cache is shared
+    eval_db.unlink(missing_ok=True)
+    settings = base.model_copy(update={"db_path": eval_db})
+    content = ContentRepository(settings.content_dir)
+    passages = {p.rule_ref: p.text for p in build_passages(content)}
+    service = ExplainService(settings, content, Database(eval_db))
+
+    samples, cases = [], []
+    for topic_id in RAG_TOPICS:
+        error = None
+        try:
+            out = await service.explain(topic_id)
+        except Exception as exc:  # noqa: BLE001 - the eval records every failure
+            error = f"{type(exc).__name__}: {exc}"[:300]
+        record = service.db.list_audit(1)[0]["data"]
+        retrieved = record.get("retrieved", [])
+        cases.append(
+            {
+                "topic_id": topic_id,
+                "retrieved": retrieved,
+                "error": error,
+                "sources": [s.rule_ref for s in out.sources] if not error else [],
+            }
+        )
+        if not error:
+            samples.append(
+                SingleTurnSample(
+                    user_input=f"Spiegami meglio: {content.get(topic_id).title}",
+                    response=out.explanation,
+                    retrieved_contexts=[passages[r] for r in retrieved if r in passages],
+                )
+            )
+    eval_db.unlink(missing_ok=True)
+
+    scores: dict[str, float] = {}
+    if samples:
+        llm = LangchainLLMWrapper(
+            ChatOpenAI(model=settings.model, api_key=settings.openai_api_key.get_secret_value())
+        )
+        result = evaluate(
+            EvaluationDataset(samples=samples),
+            metrics=[Faithfulness(), LLMContextPrecisionWithoutReference()],
+            llm=llm,
+            show_progress=False,
+        )
+        df = result.to_pandas()
+        for name in ("faithfulness", "llm_context_precision_without_reference"):
+            scores[name] = round(float(df[name].mean()), 3)
+        for case, (_, row) in zip([c for c in cases if not c["error"]], df.iterrows(), strict=True):
+            case["faithfulness"] = round(float(row["faithfulness"]), 3)
+            case["context_precision"] = round(
+                float(row["llm_context_precision_without_reference"]), 3
+            )
+
+    faith = scores.get("faithfulness", 0.0)
+    precision = scores.get("llm_context_precision_without_reference", 0.0)
+    passed = (
+        all(not c["error"] for c in cases)
+        and faith >= RAG_MIN_FAITHFULNESS
+        and precision >= RAG_MIN_CONTEXT_PRECISION
+    )
+    for c in cases:
+        c["passed"] = not c["error"]
+    return {
+        "name": "rag",
+        "score": f"faithfulness {faith}, context precision {precision}",
+        "gate": f"faithfulness >= {RAG_MIN_FAITHFULNESS}, "
+        f"context precision >= {RAG_MIN_CONTEXT_PRECISION}, no errors",
+        "passed": passed,
+        "cases": cases,
+    }
+
+
 def _print(report: dict[str, Any]) -> None:
     for ev in report["evals"]:
         mark = "PASS" if ev["passed"] else "FAIL"
         print(f"\n[{mark}] {ev['name']}: {ev['score']} (gate {ev['gate']})")
         for c in ev["cases"]:
             ok = "ok  " if c["passed"] else "FAIL"
-            if ev["name"] == "review":
+            if ev["name"] == "rag":
+                print(
+                    f"  {ok} {c['topic_id']}: faithfulness {c.get('faithfulness')}, "
+                    f"context precision {c.get('context_precision')}, "
+                    f"sources {c['sources']}" + (f", error {c['error']}" if c["error"] else "")
+                )
+            elif ev["name"] == "review":
                 edge = " (edge)" if c["edge"] else ""
                 print(
                     f"  {ok} {c['id']}{edge}: expected approved={c['expected']}, "
@@ -148,7 +247,7 @@ def _print(report: dict[str, Any]) -> None:
 async def main(selected: list[str]) -> int:
     logging.disable(logging.WARNING)
     settings = get_settings()
-    runners = {"review": review_eval, "trajectory": trajectory_eval}
+    runners = {"review": review_eval, "trajectory": trajectory_eval, "rag": rag_eval}
     names = selected or list(runners)
     evals = [await runners[n]() for n in names]
     report = {

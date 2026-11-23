@@ -32,6 +32,12 @@ class Settings(BaseSettings):
     # Exercises made in advance for each topic (0 disables the pool and the prefetch).
     pool_size: int = 2
 
+    # RAG for "Spiegami meglio" (OpenAI embeddings + Qdrant hybrid search).
+    embedding_model: str = "text-embedding-3-small"
+    qdrant_url: str | None = None  # empty: an in-memory Qdrant in the MCP server process
+    rag_top_k: int = 4
+    explain_timeout_s: float = 45.0
+
     # Provider keys use the standard names, without the ENITA_ prefix.
     openai_api_key: SecretStr | None = Field(None, validation_alias="OPENAI_API_KEY")
     google_api_key: SecretStr | None = Field(None, validation_alias="GOOGLE_API_KEY")

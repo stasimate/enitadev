@@ -275,3 +275,42 @@ def test_new_exercise_types() -> None:
     )
     assert format_issues(transform) == [] and is_correct(transform, "she does not work")
     assert format_issues(transform.model_copy(update={"answers": ["She works."]}))
+
+
+def test_streak() -> None:
+    from datetime import date
+
+    from enita.storage.db import streak
+
+    today = date(2026, 11, 23)
+    assert streak(["2026-11-21", "2026-11-22", "2026-11-23"], today) == 3
+    assert streak(["2026-11-21", "2026-11-22"], today) == 2  # today not done yet
+    assert streak(["2026-11-20", "2026-11-22"], today) == 1
+    assert streak([], today) == 0
+
+
+def test_explanation_cites_only_retrieved_passages() -> None:
+    from types import SimpleNamespace
+
+    from enita.models import Explanation
+    from enita.practice.explain import grounded_sources, retrieved_refs
+
+    tool_result = (
+        '{"content":[{"type":"text","text":"[{\\"rule_ref\\": \\"past-simple#regola\\"}]"}]}'
+    )
+    spans = [SimpleNamespace(name="Tool search_grammar", attributes={"tool_result": tool_result})]
+    retrieved = retrieved_refs(spans)
+    assert retrieved == {"past-simple#regola"}
+
+    out = Explanation(
+        explanation="x", sources=["past-simple#regola", "past-simple#esempi", "nope#regola"]
+    )
+    assert grounded_sources(out, retrieved, get_content()) == ["past-simple#regola"]
+
+
+def test_hybrid_search_ranking() -> None:
+    from enita.rag.index import Bm25
+
+    bm = Bm25(["present simple does he work", "past simple went did", "articles a an the"])
+    scores = bm.scores("did he go yesterday went")
+    assert scores.index(max(scores)) == 1

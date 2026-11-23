@@ -9,7 +9,7 @@ from enita.models import SECTION_SLUGS, Level, Section, TopicCard, TopicSummary
 
 _FRONT_MATTER = re.compile(r"\A---\n(?P<meta>.*?)\n---\n(?P<body>.*)\Z", re.DOTALL)
 _H2 = re.compile(r"^## +(?P<title>.+?)\s*$", re.MULTILINE)
-_LEVEL_ORDER: dict[Level, int] = {"A1": 0, "A2": 1, "B1": 2}
+_LEVEL_ORDER: dict[Level, int] = {"A1": 0, "A2": 1, "B1": 2, "B2": 3}
 
 
 class ContentError(ValueError):

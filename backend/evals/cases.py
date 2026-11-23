@@ -187,3 +187,6 @@ TRAJECTORY_TOPICS: list[tuple[str, str]] = [
     ("past-simple", "reorder"),
     ("comparatives-superlatives", "transform"),
 ]
+
+# Topics for the RAG eval ("Spiegami meglio" with RAGAS metrics).
+RAG_TOPICS: list[str] = ["past-simple", "comparatives-superlatives", "modal-verbs", "passive-voice"]

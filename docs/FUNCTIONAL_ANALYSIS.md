@@ -74,10 +74,12 @@ Priority: **M** = must (minimum for delivery), **S** = should, **C** = could.
 |---|---|---|
 | RF-20 | The system keeps a **permanent student profile**: the estimated level, the accuracy for each topic and the errors that occur frequently. | M |
 | RF-21 | The AI uses the profile when it makes exercises. It gives more exercises on the frequent errors (permanent memory). | S |
-| RF-22 | A "Progress" view shows the accuracy for each topic. | C |
+| RF-22 | A **Progress page** (`/progressi`) shows the streak of active days, a 30-day strip, a mastery bar for each topic and the frequent errors with a link to the rule. | S |
 | RF-23 | **Session of 10 exercises**: a progress line (exercise n/10, correct answers), a "next" button and a summary with the score and the wrong rules, each with a link to the rule. | S |
 | RF-24 | **Exercises ready in advance**: when the student opens a topic, the system prepares exercises in the background. A ready exercise appears in less than 0.1 s. | S |
 | RF-25 | **Varied exercises**: the writer does not repeat the sentences, verbs and subjects of the latest exercises of the topic. | S |
+| RF-26 | **Keyboard shortcuts**: 1-4 choose an option, N starts a new exercise, P goes to the next exercise of a session. Keys typed in a text field are ignored. | C |
+| RF-27 | **Pronunciation**: each English example of the theory and of the explanation has a [▶] button that reads it aloud with the speech synthesis of the browser. Wrong (struck-out) forms have no button. | C |
 
 ### 3.4 Configuration
 
@@ -156,7 +158,7 @@ ContextTracing. This is an item of "Cosa alza il livello" in the brief.
 ┌──────────────────────────▼──── enita-mcp (MCP server) ─────────────┐
 │  get_theory_card(topic_id)        ← S12: the first and only tool   │
 │  get_learner_profile(topic_id)    ← permanent memory (aggregates)  │
-│  search_grammar(query)            ← RAG phase (Qdrant, hybrid)     │
+│  search_grammar(query, topic_id)  ← RAG: Qdrant + BM25 hybrid      │
 └──────────────────────────┬─────────────────────────────────────────┘
                            ▼
           content/en/topics/*.md   ·   data/enita.db (SQLite)
@@ -172,8 +174,8 @@ ContextTracing. This is an item of "Cosa alza il livello" in the brief.
 | POST | `/api/exercises` | `{topic_id, type?}` → exercise `{id, type, prompt, options?, topic_id}` |
 | POST | `/api/topics/{id}/prefetch` | 202. Prepare exercises for the topic in the background (exercise pool) |
 | POST | `/api/exercises/{id}/answer` | `{answer}` → feedback `{verdict, score, correct_answer, explanation, rule_ref}` |
-| POST | `/api/topics/{id}/explain` | Personal explanation (RF-05) |
-| GET | `/api/progress?topic_id=` | Learner profile: accuracy for each topic, frequent errors for each `rule_ref` |
+| POST | `/api/topics/{id}/explain` | "Spiegami meglio" (RF-05): `{explanation, sources: [{rule_ref, title}]}`. 503 if the RAG has no OpenAI key for the embeddings |
+| GET | `/api/progress?topic_id=` | Learner profile: accuracy for each topic, frequent errors for each `rule_ref`, `streak_days`, `active_days` (last 30 days) |
 | GET | `/api/audit?limit=` | The most recent audit records (generations, corrections, guardrail events) |
 
 ### 5.4 Data model
@@ -228,7 +230,14 @@ ContextTracing. This is an item of "Cosa alza il livello" in the brief.
     each generation must take 30 s or less. Gate: 3 of 3.
   - The first run found a real defect: on some tasks the writer did not call
     `get_learner_profile`. The fix: the writer calls both tools in parallel in its first step.
-- **RAGAS** (RAG phase): faithfulness and context precision for "Spiegami meglio".
+- **RAG eval (RAGAS).** 4 real "Spiegami meglio" explanations (past simple, comparatives,
+  modal verbs, passive). The contexts are the passages that the agent retrieved. Gates: no
+  errors, mean faithfulness >= 0.85, mean context precision >= 0.70. Measured: faithfulness
+  0.90-0.95, context precision 0.82.
+  - The first run found a real retrieval defect: for modal verbs the search returned the
+    phrasal-verbs passages (precision 0.0) and the agent explained from its own knowledge.
+    The fix: with a topic, the search returns k-1 passages of that topic and one other.
+    Precision went from 0.66 to 0.82 and modal verbs from 0.0 to 1.0.
 - **Docker**: one image with a multi-stage build. Stage 1 (Node 24) builds the Angular application. Stage 2 (Python 3.12, uv) installs the backend and copies the Angular build. FastAPI serves the API at `/api` and the static frontend at `/`. `compose.yaml` starts the image and reads `.env`.
 
 ## 7. UI guidelines
@@ -255,6 +264,7 @@ Each milestone must end with a part that operates.
 | M4 | Review eval (8 cases) and trajectory eval (3 generations), timeout on the generation and on MCP tool calls | S14 | done |
 | M5 | Docker image tested with the real LLM, Docker dev stack tested, GitHub Actions CI with the eval gate, final README with the MCP setup for other hosts | S15 | done |
 | M7 | Sprint for the end user: 3 new closed exercise types, exercise pool with prefetch, session of 10 with summary, varied exercises | RF-11, RF-23..25 | done |
+| M8 | "Spiegami meglio" with RAG (hybrid search, explainer agent, RAGAS eval), Progress page, keyboard shortcuts, pronunciation, 5 B1-B2 topics | RF-05, RF-22, RF-26, RF-27 | done |
 | M6 | *(if time is available)* open exercises, "Spiegami meglio", RAG on Qdrant and RAGAS | RF-05, RF-13 | 2 h |
 
 ## 9. Decisions
@@ -283,6 +293,11 @@ Each milestone must end with a part that operates.
 | Exercise pool | Approved exercises are saved with `served = 0`. A request takes one from the pool, else generates it now. After each request, a background task fills the pool again (`ENITA_POOL_SIZE`, default 2). | Live test: 54 ms from the pool against 5-15 s for a live generation. |
 | New exercise types | Closed types only (reorder, transform, find the error), with the type logic in `enita/agent/formats.py`. Code (not the LLM) shuffles the reorder chunks and splits the find-error words. | The check stays free, instant and deterministic. The LLM cannot make a bad shuffle. |
 | Variety | `get_learner_profile` also returns the solved sentences of the latest 10 exercises. The writer must not reuse them. | In a live session the same rule gave 4 equal exercises ("work → works"). After the change, 8 exercises used 8 different verbs. The sentences come from the agents, not from the student, so they are safe in a prompt. |
+| RAG chunks | One chunk = one section of a card, with its `rule_ref`. | The sections are already complete units. A source in the explanation links directly to a section in the theory part. |
+| RAG search | Hybrid: OpenAI embeddings in Qdrant + BM25, fused with Reciprocal Rank Fusion. With a topic: k-1 passages of the topic and one other. | Dense search finds the meaning (Italian query, English examples); BM25 finds exact terms (`does`, `went`). The topic rule fixed a measured retrieval defect (see §6). |
+| RAG infrastructure | Qdrant in memory in the MCP server process, embeddings cached on disk by content hash. `ENITA_QDRANT_URL` selects a Qdrant server. | One Docker image and no file locks between processes. An unchanged card is never embedded again (first build 1 s, then 0.02 s). |
+| Explanation guardrail | The cited sources must be passages that `search_grammar` returned in the same trace and must exist. Wrong forms are struck out. | No ungrounded citations. The app does not read a wrong form aloud. |
+| Tools per agent | The writer gets `get_theory_card` and `get_learner_profile`; the explainer gets `search_grammar` and `get_learner_profile`. All tool parameters are required. | Least privilege. OpenAI strict mode refused a tool with an optional parameter, also for the writer. |
 | Frontend structure | `core/`, `features/`, `shared/`. One component has one responsibility. A feature store keeps the state. | Decision of the project owner. Small components are easy to test and to change. |
 
 ## 10. Open questions

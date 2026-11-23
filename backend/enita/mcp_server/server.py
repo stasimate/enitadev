@@ -48,6 +48,27 @@ def build_server(content: ContentRepository | None = None, db: Database | None =
         data["recent_exercises"] = store.recent_exercises(topic_id)
         return json.dumps(data, ensure_ascii=False)
 
+    index = None
+
+    @server.tool()
+    def search_grammar(query: str, topic_id: str) -> str:
+        """Search the theory cards (hybrid search: embeddings + BM25) and return JSON passages.
+
+        Each passage has rule_ref (`topic#section`), title and text. Use only these passages
+        to explain a rule, and cite their rule_ref values. topic_id (optional) favours the
+        passages of that topic.
+        """
+        nonlocal index
+        if index is None:
+            from enita.rag.index import GrammarIndex, RagUnavailable
+
+            try:
+                index = GrammarIndex(get_settings(), repo)
+            except RagUnavailable as exc:
+                raise ToolError(str(exc)) from exc
+        passages = index.search(query, topic_id=topic_id or None)
+        return json.dumps([p.__dict__ for p in passages], ensure_ascii=False)
+
     return server
 
 

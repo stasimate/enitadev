@@ -10,6 +10,7 @@ __pycache__/
 .pytest_cache/
 .ruff_cache/
 backend/data/*.db
+backend/data/*.json
 backend/data/audit/
 
 # Node / Angular

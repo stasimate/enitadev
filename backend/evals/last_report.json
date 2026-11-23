@@ -1,5 +1,5 @@
 {
-  "created_at": "2026-11-23T13:27:20+00:00",
+  "created_at": "2026-11-23T13:50:41+00:00",
   "provider": "openai",
   "model": "gpt-4.1-mini",
   "writer_model": "gpt-4.1-mini",
@@ -8,7 +8,7 @@
   "evals": [
     {
       "name": "review",
-      "score": "11/11",
+      "score": "10/11",
       "gate": ">= 10/11",
       "passed": true,
       "cases": [
@@ -20,9 +20,7 @@
           "passed": true,
           "defect": "none",
           "issues": [],
-          "correct_options": [
-            "works"
-          ]
+          "correct_options": []
         },
         {
           "id": "good-choice-past-simple",
@@ -45,10 +43,9 @@
           "defect": "the expected answer is wrong English (readed)",
           "issues": [
             "The completed sentence is incorrect: 'readed' is not the correct past participle of 'read'.",
-            "The only answer provided 'readed' is wrong; the correct past participle is 'read'.",
-            "The explanation is incorrect; 'read' is an irregular verb and does not form its participle with -ed.",
-            "The exercise contradicts the theory card regarding irregular verb participles.",
-            "The instruction is clear but the answer and explanation do not match the theory card or standard English grammar."
+            "The only provided answer 'readed' is wrong; the correct participle is 'read' (pronounced 'red').",
+            "The explanation incorrectly states that the past participle of 'read' is formed with -ed, which is misleading because 'read' is irregular and the spelling does not change.",
+            "The exercise does not meet the card's rule about irregular participles, particularly 'read'."
           ],
           "correct_options": []
         },
@@ -61,10 +58,9 @@
           "defect": "'walks' is also correct",
           "issues": [
             "These options also give a correct sentence: ['walks']. Change them.",
-            "The sentence 'She walks to school every day.' is also grammatically correct and natural, so there is more than one correct option.",
-            "The answers include only 'goes', but 'walks' is also correct, violating the rule of having exactly one correct solution.",
-            "The exercise is about present simple third person singular, but the options and answers do not match the requirement of having a single correct option.",
-            "The explanation does not clarify why 'go' is incorrect in the third person singular form, which might confuse learners."
+            "More than one option gives a grammatically correct sentence, so the answer is not unique.",
+            "Option 'walks' is also correct and should be included in the answers.",
+            "The exercise does not have exactly one correct solution as required."
           ],
           "correct_options": [
             "goes",
@@ -80,11 +76,10 @@
           "defect": "the answer repeats 'finished'",
           "issues": [
             "The answer repeats a word of the prompt. The completed sentence is: He has finished finished his homework.",
-            "Completed sentence contains a repeated word: 'finished finished'.",
-            "The completed sentence is not grammatically correct due to word repetition.",
-            "The completed sentence is not natural because of repeated 'finished'.",
-            "The instruction is vague and does not explicitly prevent repetition errors.",
-            "No alternatives or common variations given, but repetition error makes the draft incorrect."
+            "Completed sentence repeats the word 'finished'.",
+            "Completed sentence is not grammatically correct or natural.",
+            "The completed sentence does not match the correct answer format of the exercise.",
+            "There should be no word repetition in the completed sentence."
           ],
           "correct_options": []
         },
@@ -96,10 +91,11 @@
           "passed": true,
           "defect": "the explanation names the wrong tense",
           "issues": [
-            "The explanation wrongly states 'past simple' instead of 'present continuous'.",
-            "The explanation does not agree with the theory card rules.",
-            "The instruction is too generic and does not specify present continuous, which is the topic.",
-            "The answers list multiple correct forms; this violates the single correct solution rule."
+            "The explanation is incorrect; it incorrectly states 'past simple' instead of 'present continuous' for current actions.",
+            "There are two correct answers 'is raining' and ''s raining', which is acceptable, but the explanation and other content must be correct.",
+            "The instruction is clear and consistent with the answers.",
+            "The completed sentence is natural and grammatically correct.",
+            "The exercise correctly practices present continuous as per the theory card."
           ],
           "correct_options": []
         },
@@ -121,18 +117,12 @@
           "id": "edge-article-ambiguity",
           "edge": true,
           "expected": false,
-          "approved": false,
-          "passed": true,
+          "approved": true,
+          "passed": false,
           "defect": "'the' also gives a correct sentence",
-          "issues": [
-            "These options also give a correct sentence: ['the']. Change them.",
-            "More than one article can be correct: both 'a' and 'the' fit the sentence grammatically depending on context.",
-            "The exercise accepts only one correct answer, but others are possible.",
-            "The prompt lacks context to exclude 'the' as a valid article here."
-          ],
+          "issues": [],
           "correct_options": [
-            "a",
-            "the"
+            "a"
           ]
         },
         {
@@ -153,15 +143,14 @@
           "passed": true,
           "defect": "'buyed' is also wrong",
           "issues": [
-            "The completed sentence contains 'buyed', which is incorrect and should be 'bought'.",
-            "There is more than one incorrect word ('goed' and 'buyed'), but only 'goed' is given as the answer, violating the condition of exactly one correct solution.",
-            "The answer list includes only 'goed', missing the error on 'buyed', so the answer is incomplete.",
-            "The exercise does not fully align with the Past Simple rules for irregular verbs, as the verb 'buy' is also irregular and incorrectly formed in the prompt.",
-            "The completed sentence is not grammatically correct due to the error 'buyed', so condition 1 is violated."
+            "The completed sentence contains two errors: 'goed' and 'buyed', but only 'goed' is identified as wrong.",
+            "The exercise has more than one error; it violates the condition that only one error should be present for a 'find_error' type exercise.",
+            "The correction covers only one error, though two errors are in the prompt.",
+            "The completed sentence is grammatically incorrect due to 'buyed'.",
+            "The answers do not cover all the incorrect words in the prompt."
           ],
           "correct_options": [
-            "goed",
-            "buyed"
+            "goed"
           ]
         },
         {
@@ -172,12 +161,11 @@
           "passed": true,
           "defect": "the expected answer is wrong English (doesn't plays)",
           "issues": [
-            "The completed sentence 'He doesn't plays tennis on Sundays.' is grammatically incorrect; it should be 'He doesn't play tennis on Sundays.'",
-            "The only answer given is incorrect; the verb after 'doesn't' must be in base form without 's'.",
-            "The instruction asks to transform the sentence into negative form, but the provided answer violates the rule given in the theory card.",
-            "The correction field is empty but should provide the fix to the answer sentence.",
-            "The explanation states the correct rule but this is not reflected in the provided answer.",
-            "The draft does not meet the condition of exactly one correct solution, because the only provided solution is incorrect."
+            "The completed sentence 'He doesn't plays tennis on Sundays.' is grammatically incorrect.",
+            "There is exactly one correct negative form: 'He doesn't play tennis on Sundays.' but it is not given in the answers.",
+            "The answer 'He doesn't plays tennis on Sundays.' is incorrect because after 'doesn't' the verb must be in base form 'play'.",
+            "The correction field is empty but the sentence is wrong, so correction should provide the correct sentence.",
+            "The exercise does not practice the present simple negative form correctly because the given answer is wrong."
           ],
           "correct_options": []
         }
@@ -204,9 +192,9 @@
             "get_learner_profile"
           ],
           "attempts": 1,
-          "seconds": 6.2,
+          "seconds": 5.6,
           "tokens": {
-            "prompt": 5039,
+            "prompt": 5092,
             "completion": 167
           },
           "error": null
@@ -226,10 +214,10 @@
             "get_learner_profile"
           ],
           "attempts": 1,
-          "seconds": 6.2,
+          "seconds": 6.6,
           "tokens": {
-            "prompt": 5222,
-            "completion": 172
+            "prompt": 5218,
+            "completion": 178
           },
           "error": null
         },
@@ -248,12 +236,90 @@
             "get_learner_profile"
           ],
           "attempts": 1,
-          "seconds": 5.4,
+          "seconds": 5.5,
           "tokens": {
-            "prompt": 5618,
-            "completion": 171
+            "prompt": 5671,
+            "completion": 183
           },
           "error": null
+        }
+      ]
+    },
+    {
+      "name": "rag",
+      "score": "faithfulness 0.9, context precision 0.819",
+      "gate": "faithfulness >= 0.85, context precision >= 0.7, no errors",
+      "passed": true,
+      "cases": [
+        {
+          "topic_id": "past-simple",
+          "retrieved": [
+            "passive-voice#riepilogo",
+            "past-simple#attenzione",
+            "past-simple#regola",
+            "past-simple#riepilogo"
+          ],
+          "error": null,
+          "sources": [
+            "past-simple#regola",
+            "past-simple#riepilogo",
+            "past-simple#attenzione"
+          ],
+          "faithfulness": 0.682,
+          "context_precision": 0.639,
+          "passed": true
+        },
+        {
+          "topic_id": "comparatives-superlatives",
+          "retrieved": [
+            "articles#esempi",
+            "comparatives-superlatives#attenzione",
+            "comparatives-superlatives#esempi",
+            "comparatives-superlatives#regola"
+          ],
+          "error": null,
+          "sources": [
+            "comparatives-superlatives#regola",
+            "comparatives-superlatives#attenzione"
+          ],
+          "faithfulness": 1.0,
+          "context_precision": 0.639,
+          "passed": true
+        },
+        {
+          "topic_id": "modal-verbs",
+          "retrieved": [
+            "modal-verbs#attenzione",
+            "modal-verbs#regola",
+            "modal-verbs#riepilogo",
+            "phrasal-verbs#riepilogo"
+          ],
+          "error": null,
+          "sources": [
+            "modal-verbs#regola",
+            "modal-verbs#attenzione",
+            "modal-verbs#riepilogo"
+          ],
+          "faithfulness": 0.917,
+          "context_precision": 1.0,
+          "passed": true
+        },
+        {
+          "topic_id": "passive-voice",
+          "retrieved": [
+            "passive-voice#attenzione",
+            "passive-voice#esempi",
+            "passive-voice#regola",
+            "present-perfect#regola"
+          ],
+          "error": null,
+          "sources": [
+            "passive-voice#regola",
+            "passive-voice#attenzione"
+          ],
+          "faithfulness": 1.0,
+          "context_precision": 1.0,
+          "passed": true
         }
       ]
     }

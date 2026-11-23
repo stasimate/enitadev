@@ -3,10 +3,13 @@
 Enita is a simulator that helps Italian speakers learn English. Artificial intelligence (AI)
 controls the simulator. The screen has two parts:
 
-- The left part shows the **theory**: a card for each grammar topic (CEFR A1 to B1).
+- The left part shows the **theory**: a card for each grammar topic (CEFR A1 to B2), with
+  a [▶] button to hear each example and a **"Spiegami meglio"** button that explains the
+  rule again from your errors (RAG on the cards).
 - The right part shows the **practice**: exercises that AI agents make and verify, in five
   types (fill in the blank, multiple choice, reorder, transform, find the error), one at a
-  time or in a session of 10 with a summary.
+  time or in a session of 10 with a summary. Keyboard shortcuts: 1–4, N, P.
+- The **Progress** page shows your streak, a 30-day strip and a mastery bar for each topic.
 
 When you make an error, the feedback shows the rule that you did not obey. The theory part
 highlights that rule.
@@ -28,7 +31,8 @@ Angular 22 + Tailwind v4 · Docker.
 | LLM and agent core | Two datapizza `Agent`s (writer and verifier) with structured output. A client factory for OpenAI, Google, Anthropic and Ollama. Permanent memory in SQLite (learner profile). |
 | Orchestration | Multi-agent `DagPipeline`: writer → (fixed-rule check ∥ verifier) → decision, with a retry loop. An MCP server supplies the tools `get_theory_card` and `get_learner_profile`. |
 | Security and governance | Input guardrail on the student answer, output guardrail on the writer. `ContextTracing` audit trail in SQLite (`GET /api/audit`). No raw student answer goes into an LLM prompt. |
-| Reliability | Review eval (11 cases, gate 10/11) and trajectory eval (3 real generations, gate 3/3). Timeouts on the generation (45 s) and on MCP tool calls (10 s). |
+| Knowledge (RAG) | "Spiegami meglio": an explainer agent with hybrid search (Qdrant + BM25) on the cards. It cites only the passages that it retrieved. RAGAS eval: faithfulness ≥ 0.85, context precision ≥ 0.70. |
+| Reliability | Review eval (11 cases, gate 10/11), trajectory eval (3 real generations, gate 3/3) and RAG eval. Timeouts on the generation (45 s) and on MCP tool calls (10 s). |
 | Production | One Docker image (FastAPI serves the API and the Angular build). A Docker dev stack with hot reload. GitHub Actions CI with the evals as a gate for the Docker build. |
 
 ```
@@ -84,6 +88,8 @@ All the settings are in `.env` (refer to [`.env.example`](.env.example)).
 | `ENITA_GENERATION_TIMEOUT_S` | `45` | Timeout of one exercise generation |
 | `ENITA_MCP_TIMEOUT_S` | `10` | Timeout of one MCP tool call |
 | `ENITA_POOL_SIZE` | `2` | Exercises prepared in advance for each topic (0 disables it) |
+| `ENITA_EMBEDDING_MODEL` | `text-embedding-3-small` | Embeddings for the RAG (needs `OPENAI_API_KEY`) |
+| `ENITA_QDRANT_URL` | empty | Qdrant server for the RAG. Empty: Qdrant in memory |
 
 ## Start for development without Docker
 
